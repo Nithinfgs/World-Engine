@@ -1,0 +1,2585 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/lucide-static@0.471.1/icons/globe.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>World Engine — Digital Twin of Earth</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Outfit:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Outfit', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            }
+          }
+        }
+      }
+    </script>    <style>
+      /* World Engine HUD Theme Styles (Dark Operations Center Edition) */
+      :root {
+        /* Colors */
+        --bg-color: #0A0E17;      /* Deep Obsidian Space Black */
+        --panel-bg: rgba(15, 23, 42, 0.75); /* Frosted Slate-900 Glass */
+        --card-bg: rgba(30, 41, 59, 0.85);  /* Dark Surface Cards */
+        --glass-bg: rgba(15, 23, 42, 0.8);  /* Glassmorphism slate fill */
+        --glass-border: rgba(255, 255, 255, 0.08); /* Minimal glow border */
+        
+        --primary: #3B82F6;       /* Glowing Neon Blue */
+        --secondary: #14B8A6;     /* Glowing Copper Teal */
+        --ai-purple: #8B5CF6;     /* AI Violet */
+        --success: #10B981;       /* Success emerald */
+        --warning: #F59E0B;       /* Warning amber */
+        --danger: #EF4444;        /* Danger red */
+        --highlight: #F8FAFC;     /* Slate-50 bright text */
+        --text-muted: #94A3B8;    /* Muted blue-grey */
+        
+        /* Fonts */
+        --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-display: 'Outfit', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+
+        font-family: var(--font-sans);
+        background-color: var(--bg-color);
+        color: var(--highlight);
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow: hidden;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      *, *::before, *::after {
+        box-sizing: inherit;
+      }
+
+      body {
+        margin: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: var(--bg-color);
+        overflow: hidden;
+      }
+
+      /* Scrollbars */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--glass-border);
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary);
+      }
+
+      /* Glassmorphism Panel styles */
+      .hud-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+      }
+
+      .hud-panel-glow-blue {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+        border-color: rgba(59, 130, 246, 0.25);
+      }
+
+      .hud-panel-glow-purple {
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+        border-color: rgba(139, 92, 246, 0.25);
+      }
+
+      /* Layout containers */
+      #root {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+        display: grid;
+        grid-template-rows: 64px 1fr 80px;
+        grid-template-columns: 280px 1fr 340px;
+        grid-template-areas:
+          "top top top"
+          "left center right"
+          "bottom bottom bottom";
+      }
+
+      /* Animations */
+      @keyframes pulse-dot {
+        0% {
+          transform: scale(0.85);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.15);
+          opacity: 1;
+          box-shadow: 0 0 8px currentColor;
+        }
+        100% {
+          transform: scale(0.85);
+          opacity: 0.5;
+        }
+      }
+
+      .pulse-active {
+        animation: pulse-dot 2s infinite ease-in-out;
+      }
+
+      @keyframes spin-slow {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .spin-slow {
+        animation: spin-slow 120s linear infinite;
+      }
+
+      @keyframes scanline {
+        0% {
+          transform: translateY(-100%);
+        }
+        100% {
+          transform: translateY(100%);
+        }
+      }
+
+      .scanlines::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          rgba(255, 255, 255, 0) 50%,
+          rgba(200, 190, 175, 0.12) 50%
+        );
+        background-size: 100% 4px;
+        z-index: 999;
+        pointer-events: none;
+      }
+
+      /* Typography styles */
+      h1, h2, h3, h4 {
+        font-family: var(--font-display);
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .font-mono {
+        font-family: var(--font-mono);
+      }
+
+      .text-gradient-cyan {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .text-gradient-purple {
+        background: linear-gradient(135deg, #A78BFA 0%, var(--ai-purple) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      /* Shake Animation for Tectonic alerts */
+      @keyframes shake {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        10% { transform: translate(-3px, -2px) rotate(-0.5deg); }
+        20% { transform: translate(-4px, 0px) rotate(0.5deg); }
+        30% { transform: translate(0px, 3px) rotate(0deg); }
+        40% { transform: translate(2px, -2px) rotate(0.5deg); }
+        50% { transform: translate(-2px, 3px) rotate(-0.5deg); }
+        60% { transform: translate(-4px, 1px) rotate(0deg); }
+        70% { transform: translate(3px, 2px) rotate(-0.5deg); }
+        80% { transform: translate(-2px, -2px) rotate(0.5deg); }
+        90% { transform: translate(3px, 3px) rotate(0deg); }
+      }
+
+      .shake-active {
+        animation: shake 0.4s ease-in-out infinite;
+      }
+
+      /* Custom Glass range sliders styling */
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--secondary);
+        box-shadow: 0 0 10px var(--secondary);
+        cursor: pointer;
+        transition: transform 0.1s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.3);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="module">
+      import React, { useState, useEffect, useRef, StrictMode } from 'https://esm.sh/react@19.0.0';
+      import { createRoot } from 'https://esm.sh/react-dom@19.0.0/client';
+      import * as THREE from 'https://esm.sh/three@0.172.0';
+      import { 
+        X, 
+        Globe, 
+        Plane, 
+        Ship, 
+        Orbit, 
+        CloudRain, 
+        Activity, 
+        Grid3X3, 
+        Cpu, 
+        Brain, 
+        Sliders, 
+        Settings, 
+        Search, 
+        Globe2, 
+        Play, 
+        Pause, 
+        ShieldAlert, 
+        ArrowRight,
+        AlertTriangle,
+        Clock,
+        Gauge,
+        Terminal,
+        Wifi,
+        Sparkles,
+        CornerDownLeft,
+        Loader2,
+        CheckCircle2,
+        Heart
+      } from 'https://esm.sh/lucide-react@0.471.1?deps=react@19.0.0';
+
+      // ==========================================
+      // 1. DATA TYPES & DATA CONTEXT
+      // ==========================================
+
+      const PRESET_QUERIES = [
+        { text: 'Analyze European airspace delays', type: 'flights' },
+        { text: 'Examine California thermal anomaly', type: 'weather' }
+      ];
+
+      const YEARS = [2015, 2020, 2026, 2030, 2035];
+
+      const EVENTS = [
+        { id: 'ev1', name: 'Japan Earthquake', type: 'seismic', lat: 38.268, lon: 140.869, zoom: 4.0, description: 'M 7.2 seismic tremor detected Tohoku fault line. Geology active.', layers: { earth: true, aviation: false, oceans: false, space: false, weather: false, geology: true, grid: true } },
+        { id: 'ev2', name: 'SpaceX Falcon Launch', type: 'rocket', lat: 28.5728, lon: -80.649, zoom: 5.0, description: 'Falcon Heavy launch successful from Cape Canaveral LC-39A. Starlink downlink nominal.', layers: { earth: true, aviation: false, oceans: false, space: true, weather: false, geology: false, grid: true } },
+        { id: 'ev3', name: 'Suez Canal Ship Queue', type: 'maritime', lat: 29.976, lon: 32.549, zoom: 4.5, description: 'Container vessel congestion active. Dwell delays: 3.2 days. Supply chain impact.', layers: { earth: true, aviation: false, oceans: true, space: false, weather: false, geology: false, grid: true } },
+        { id: 'ev4', name: 'Mojave Deforestation Fire', type: 'fire', lat: 35.011, lon: -115.473, zoom: 4.2, description: 'Thermal plume expansion detected. Active forest wildfire over Mojave sector.', layers: { earth: true, aviation: false, oceans: false, space: false, weather: true, geology: true, grid: true } },
+        { id: 'ev5', name: 'Munich Corridor Storm', type: 'weather', lat: 48.135, lon: 11.582, zoom: 4.0, description: 'Category 3 storm cells intersecting Munich slots. Wind speed: 80 km/h.', layers: { earth: true, aviation: true, oceans: false, space: false, weather: true, geology: false, grid: true } }
+      ];
+
+      const CITIES = [
+        { name: 'London', lat: 51.5074, lon: -0.1278 },
+        { name: 'New York', lat: 40.7128, lon: -74.0060 },
+        { name: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+        { name: 'Sydney', lat: -33.8688, lon: 151.2093 },
+        { name: 'Cape Town', lat: -33.9249, lon: 18.4241 },
+        { name: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729 },
+        { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+        { name: 'Dubai', lat: 25.2048, lon: 55.2708 },
+      ];
+
+      const SENSORS = [
+        { id: 'SEN-01', type: 'BUOY', lat: 15.0, lon: -130.0, name: 'NOAA PacBuoy 41', value: '23.4', unit: '°C Sea Temp' },
+        { id: 'SEN-02', type: 'SEISMIC', lat: 36.3, lon: 138.2, name: 'Tokyo Seismo Grid B', value: '1.2', unit: 'M Tremor' },
+        { id: 'SEN-03', type: 'WEATHER', lat: 52.1, lon: 4.9, name: 'KNMI NetherStation', value: '1013.2', unit: 'hPa Press' },
+        { id: 'SEN-04', type: 'UPLINK', lat: 37.4, lon: -122.1, name: 'Starlink Ground Station SF', value: '482', unit: 'Mbps Band' },
+        { id: 'SEN-05', type: 'CABLE', lat: 35.0, lon: 25.0, name: 'SEEMEWE Mediterranean node', value: '14', unit: 'ms Latency' },
+      ];
+
+      const LOG_TEMPLATES = [
+        { source: 'AVIATION', severity: 'INFO', message: 'Flight BA286 (LHR -> HND) reached cruising altitude 35,000ft' },
+        { source: 'AVIATION', severity: 'INFO', message: 'Flight AA100 (JFK -> LHR) filed trans-atlantic route segment C' },
+        { source: 'AVIATION', severity: 'WARNING', message: 'Flight QF012 (SIN -> SYD) routing around weather sector J2' },
+        { source: 'GEOLOGY', severity: 'INFO', message: 'Seismic monitoring station SLK: No abnormal vibrations detected' },
+        { source: 'GEOLOGY', severity: 'ALERT', message: 'USGS alert: M 4.1 Earthquake detected 12km ENE of Tokyo, Japan' },
+        { source: 'SPACE', severity: 'INFO', message: 'Starlink orbital group 5-11 orbital correction complete' },
+        { source: 'SPACE', severity: 'INFO', message: 'ISS crew transits orbital boundary segment delta' },
+        { source: 'SPACE', severity: 'WARNING', message: 'Solar wind density spike: satellite protective shielding engaged' },
+        { source: 'WEATHER', severity: 'WARNING', message: 'Hurricane alert: Storm force vectors intensifying in South Atlantic' },
+        { source: 'WEATHER', severity: 'INFO', message: 'Atmospheric moisture index peak: precipitation forecasted over Northern Europe' },
+        { source: 'NETWORK', severity: 'INFO', message: 'BGP path update: Edge routing table optimized for Cloudflare APAC' },
+        { source: 'NETWORK', severity: 'ALERT', message: 'CDNs detect localized high latency transit segments in Mediterranean cables' },
+      ];
+
+      function latLonToVector3(lat, lon, radius) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lon + 180) * (Math.PI / 180);
+        const x = -(radius * Math.sin(phi) * Math.sin(theta));
+        const y = radius * Math.cos(phi);
+        const z = radius * Math.sin(phi) * Math.cos(theta);
+        return new THREE.Vector3(x, y, z);
+      }
+
+      // ==========================================
+      // 2. EARTH GLOBE 3D VISUALIZER COMPONENT
+      // ==========================================
+
+      const EarthGlobe = ({ 
+        activeLayers, 
+        timeScale, 
+        viewMode,
+        cameraTarget,
+        shakeIntensity,
+        selectedYear,
+        onSelectSensor,
+        zoomRadiusRef
+      }) => {
+        const containerRef = useRef(null);
+        const rendererRef = useRef(null);
+
+        useEffect(() => {
+          if (!containerRef.current) return;
+
+          const width = containerRef.current.clientWidth;
+          const height = containerRef.current.clientHeight;
+          const scene = new THREE.Scene();
+          
+          const materialsToDispose = [];
+          
+          const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 150);
+          camera.position.set(0, 0, 8);
+
+          const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+          renderer.setSize(width, height);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          containerRef.current.appendChild(renderer.domElement);
+          rendererRef.current = renderer;
+
+          const mainGroup = new THREE.Group();
+          scene.add(mainGroup);
+
+          const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+          scene.add(ambientLight);
+
+          const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+          sunLight.position.set(10, 5, 10);
+          scene.add(sunLight);
+
+          const globeGroup = new THREE.Group();
+          mainGroup.add(globeGroup);
+
+          const solarGroup = new THREE.Group();
+          mainGroup.add(solarGroup);
+
+          // --- BEIGE MODE STARFIELD ---
+          const starCount = 800;
+          const starPositions = [];
+          const starColors = [];
+          const goldColor = new THREE.Color(0xD6B85A);
+          const silverColor = new THREE.Color(0xC5BEB4);
+          for (let i = 0; i < starCount; i++) {
+            const u = Math.random();
+            const v = Math.random();
+            const theta = u * 2.0 * Math.PI;
+            const phi = Math.acos(2.0 * v - 1.0);
+            const r = 40 + Math.random() * 20;
+            const sx = r * Math.sin(phi) * Math.cos(theta);
+            const sy = r * Math.sin(phi) * Math.sin(theta);
+            const sz = r * Math.cos(phi);
+            starPositions.push(sx, sy, sz);
+            const color = Math.random() > 0.5 ? goldColor : silverColor;
+            starColors.push(color.r, color.g, color.b);
+          }
+          const starGeo = new THREE.BufferGeometry();
+          starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+          starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+          const starMat = new THREE.PointsMaterial({
+            size: 0.08,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.45,
+          });
+          const starfield = new THREE.Points(starGeo, starMat);
+          scene.add(starfield);
+          materialsToDispose.push(starMat);
+
+          // Glow Earth (Holographic core in Dark mode)
+          const innerSphereGeo = new THREE.SphereGeometry(2.48, 32, 32);
+          const innerSphereMat = new THREE.MeshBasicMaterial({
+            color: 0x0A0E17,
+            transparent: true,
+            opacity: 0.85,
+          });
+          const innerSphere = new THREE.Mesh(innerSphereGeo, innerSphereMat);
+          globeGroup.add(innerSphere);
+
+          // Parallels Grid Wireframe (Glowing Teal in Dark mode)
+          const gridGeo = new THREE.SphereGeometry(2.5, 24, 24);
+          const gridMat = new THREE.MeshBasicMaterial({
+            color: 0x14B8A6,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.18,
+          });
+          const gridMesh = new THREE.Mesh(gridGeo, gridMat);
+          globeGroup.add(gridMesh);
+
+          // Procedural Landmass Particle Matrix
+          const mapWidth = 128;
+          const mapHeight = 64;
+          const mapCanvas = document.createElement('canvas');
+          mapCanvas.width = mapWidth;
+          mapCanvas.height = mapHeight;
+          const ctx = mapCanvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, mapWidth, mapHeight);
+            ctx.fillStyle = '#ffffff';
+
+            // Draw simple continents
+            ctx.beginPath();
+            ctx.moveTo(50, 15); ctx.lineTo(112, 12); ctx.lineTo(115, 35);
+            ctx.lineTo(95, 42); ctx.lineTo(76, 40); ctx.lineTo(72, 32);
+            ctx.lineTo(55, 28); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(56, 28); ctx.lineTo(72, 30); ctx.lineTo(70, 48);
+            ctx.lineTo(60, 52); ctx.lineTo(54, 40); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(84, 32); ctx.lineTo(89, 32); ctx.lineTo(86, 38); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(15, 12); ctx.lineTo(44, 10); ctx.lineTo(48, 25);
+            ctx.lineTo(34, 26); ctx.lineTo(26, 34); ctx.lineTo(18, 22); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(30, 34); ctx.lineTo(42, 34); ctx.lineTo(38, 56);
+            ctx.lineTo(34, 56); ctx.lineTo(28, 42); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(38, 6); ctx.lineTo(46, 5); ctx.lineTo(43, 11);
+            ctx.lineTo(38, 9); ctx.closePath(); ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(102, 44); ctx.lineTo(114, 44); ctx.lineTo(112, 52);
+            ctx.lineTo(102, 52); ctx.closePath(); ctx.fill();
+
+            ctx.fillRect(8, 58, 112, 4);
+          }
+
+          const pPoints = [];
+          if (ctx) {
+            const imgData = ctx.getImageData(0, 0, mapWidth, mapHeight);
+            const data = imgData.data;
+            for (let y = 0; y < mapHeight; y++) {
+              for (let x = 0; x < mapWidth; x++) {
+                const i = (y * mapWidth + x) * 4;
+                if (data[i] > 128) {
+                  const lon = (x / mapWidth) * 360 - 180;
+                  const lat = 90 - (y / mapHeight) * 180;
+                  pPoints.push(latLonToVector3(lat, lon, 2.5));
+                }
+              }
+            }
+          }
+
+          const pointsGeo = new THREE.BufferGeometry().setFromPoints(pPoints);
+          const pointsMat = new THREE.PointsMaterial({
+            color: 0x3B82F6, // Glowing Neon Blue Dots
+            size: 0.03,
+            transparent: true,
+            opacity: 0.85,
+          });
+          const pointsGlobe = new THREE.Points(pointsGeo, pointsMat);
+          globeGroup.add(pointsGlobe);
+
+          // Cities
+          const cityGeo = new THREE.SphereGeometry(0.025, 16, 16);
+          const cityMat = new THREE.MeshBasicMaterial({ color: 0x2563EB });
+          materialsToDispose.push(cityMat);
+          CITIES.forEach((city) => {
+            const marker = new THREE.Mesh(cityGeo, cityMat);
+            const pos = latLonToVector3(city.lat, city.lon, 2.5);
+            marker.position.copy(pos);
+            globeGroup.add(marker);
+          });
+
+          // Sensors
+          const sensorGeo = new THREE.SphereGeometry(0.04, 16, 16);
+          const sensorGroup = new THREE.Group();
+          globeGroup.add(sensorGroup);
+
+          const sensorMeshes = [];
+          SENSORS.forEach((sen) => {
+            const mat = new THREE.MeshBasicMaterial({ color: 0x22C55E });
+            materialsToDispose.push(mat);
+            const mesh = new THREE.Mesh(sensorGeo, mat);
+            const pos = latLonToVector3(sen.lat, sen.lon, 2.52);
+            mesh.position.copy(pos);
+            mesh.userData = sen;
+            sensorGroup.add(mesh);
+            sensorMeshes.push(mesh);
+          });
+
+          // Flight routes
+          const routesGroup = new THREE.Group();
+          globeGroup.add(routesGroup);
+
+          const planes = [];
+          const planeGeo = new THREE.SphereGeometry(0.02, 8, 8);
+          const planeMat = new THREE.MeshBasicMaterial({ color: 0x06B6D4 });
+
+          for (let i = 0; i < 15; i++) {
+            const c1 = CITIES[Math.floor(Math.random() * CITIES.length)];
+            let c2 = CITIES[Math.floor(Math.random() * CITIES.length)];
+            while (c1 === c2) {
+              c2 = CITIES[Math.floor(Math.random() * CITIES.length)];
+            }
+
+            const p1 = latLonToVector3(c1.lat, c1.lon, 2.5);
+            const p2 = latLonToVector3(c2.lat, c2.lon, 2.5);
+            const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            const dist = p1.distanceTo(p2);
+            midPoint.normalize().multiplyScalar(2.5 + dist * 0.22);
+
+            const curve = new THREE.QuadraticBezierCurve3(p1, midPoint, p2);
+            const points = curve.getPoints(24);
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMat = new THREE.LineBasicMaterial({
+              color: 0x3B82F6,
+              transparent: true,
+              opacity: 0.2,
+            });
+            materialsToDispose.push(lineMat);
+            const routeLine = new THREE.Line(lineGeo, lineMat);
+            routesGroup.add(routeLine);
+
+            const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+            routesGroup.add(planeMesh);
+            planes.push({
+              mesh: planeMesh,
+              curve,
+              speed: 0.06 + Math.random() * 0.08,
+              progress: Math.random(),
+            });
+          }
+
+          // Satellite orbits
+          const spaceGroup = new THREE.Group();
+          globeGroup.add(spaceGroup);
+
+          const satellites = [];
+          const satGeo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
+          const satMat = new THREE.MeshBasicMaterial({ color: 0x8B5CF6 });
+
+          for (let i = 0; i < 12; i++) {
+            const orbitRad = 3.1 + i * 0.18;
+            const ringGeo = new THREE.RingGeometry(orbitRad - 0.005, orbitRad + 0.005, 64);
+            const ringMat = new THREE.MeshBasicMaterial({
+              color: 0x8B5CF6,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.08,
+            });
+            materialsToDispose.push(ringMat);
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            const rotationAxis = new THREE.Vector3(
+              Math.random() - 0.5,
+              Math.random() - 0.5,
+              Math.random() - 0.5
+            ).normalize();
+            
+            ring.rotateOnAxis(rotationAxis, Math.random() * Math.PI);
+            spaceGroup.add(ring);
+
+            const satMesh = new THREE.Mesh(satGeo, satMat);
+            spaceGroup.add(satMesh);
+            satellites.push({
+              mesh: satMesh,
+              radius: orbitRad,
+              speed: 0.15 + Math.random() * 0.2,
+              angle: Math.random() * Math.PI * 2,
+              axis: rotationAxis,
+            });
+          }
+
+          // Tectonic alert pulses
+          const anomaliesGroup = new THREE.Group();
+          globeGroup.add(anomaliesGroup);
+          
+          const anomalies = [];
+
+          for (let i = 0; i < 4; i++) {
+            const lat = -30 + Math.random() * 60;
+            const lon = -120 + Math.random() * 240;
+            const pos = latLonToVector3(lat, lon, 2.51);
+
+            const ringGeo = new THREE.RingGeometry(0, 0.22, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+              color: i % 2 === 0 ? 0xEF4444 : 0xF59E0B,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.6,
+            });
+            materialsToDispose.push(ringMat);
+            const anomalyMesh = new THREE.Mesh(ringGeo, ringMat);
+            anomalyMesh.position.copy(pos);
+            anomalyMesh.lookAt(new THREE.Vector3(0, 0, 0));
+            anomalyMesh.rotateX(Math.PI / 2);
+
+            anomaliesGroup.add(anomalyMesh);
+            anomalies.push({
+              mesh: anomalyMesh,
+              maxScale: 1.2 + Math.random() * 1.5,
+              scale: 0.1,
+              speed: 0.7 + Math.random() * 0.5,
+              pulseDir: 1,
+            });
+          }
+
+          // --- DETAILED 3D SOLAR SYSTEM (8 REAL PLANETS) ---
+          const sunGeo = new THREE.SphereGeometry(0.7, 32, 32);
+          const sunMat = new THREE.MeshBasicMaterial({ color: 0xEAB308 }); // glowing gold
+          const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+          solarGroup.add(sunMesh);
+          materialsToDispose.push(sunMat);
+
+          const planetsData = [
+            { name: 'mercury', radius: 1.3, size: 0.05, color: 0x8A8379, speed: 0.24 },
+            { name: 'venus', radius: 1.8, size: 0.09, color: 0xDFD5C6, speed: 0.15 },
+            { name: 'earth', radius: 2.5, size: 0.12, color: 0x2563EB, speed: 0.10, isEarth: true },
+            { name: 'mars', radius: 3.2, size: 0.08, color: 0xDC2626, speed: 0.08 },
+            { name: 'jupiter', radius: 4.3, size: 0.24, color: 0xCA8A04, speed: 0.04 },
+            { name: 'saturn', radius: 5.6, size: 0.18, color: 0xEAB308, speed: 0.03, hasRings: true },
+            { name: 'uranus', radius: 6.8, size: 0.14, color: 0x0D9488, speed: 0.02 },
+            { name: 'neptune', radius: 7.8, size: 0.13, color: 0x1E3A8A, speed: 0.01 }
+          ];
+
+          const planetMeshes = [];
+
+          planetsData.forEach((pd) => {
+            // Draw Orbit Ring (Beige mode styled paths)
+            const orbitGeo = new THREE.RingGeometry(pd.radius - 0.005, pd.radius + 0.005, 64);
+            const orbitMat = new THREE.MeshBasicMaterial({ color: 0x78716C, side: THREE.DoubleSide, transparent: true, opacity: 0.12 });
+            const orbitRing = new THREE.Mesh(orbitGeo, orbitMat);
+            orbitRing.rotateX(Math.PI / 2);
+            solarGroup.add(orbitRing);
+            materialsToDispose.push(orbitMat);
+
+            // Planet system group (handles moons relative rotation)
+            const pGroup = new THREE.Group();
+            solarGroup.add(pGroup);
+
+            // Planet core mesh
+            const pGeo = new THREE.SphereGeometry(pd.size, 16, 16);
+            const pMat = new THREE.MeshBasicMaterial({ color: pd.color, wireframe: pd.isEarth });
+            const pMesh = new THREE.Mesh(pGeo, pMat);
+            pGroup.add(pMesh);
+            materialsToDispose.push(pMat);
+
+            let moonMesh = null;
+            if (pd.isEarth) {
+              const mGeo = new THREE.SphereGeometry(0.03, 8, 8);
+              const mMat = new THREE.MeshBasicMaterial({ color: 0x78716C });
+              moonMesh = new THREE.Mesh(mGeo, mMat);
+              moonMesh.position.x = 0.24;
+              pGroup.add(moonMesh);
+              materialsToDispose.push(mMat);
+            }
+
+            if (pd.hasRings) {
+              // Saturn tilted ring geometry
+              const rGeo = new THREE.RingGeometry(pd.size * 1.3, pd.size * 2.3, 32);
+              const rMat = new THREE.MeshBasicMaterial({ color: 0xD6B85A, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
+              const rMesh = new THREE.Mesh(rGeo, rMat);
+              rMesh.rotateX(Math.PI / 2.8);
+              pGroup.add(rMesh);
+              materialsToDispose.push(rMat);
+            }
+
+            planetMeshes.push({
+              group: pGroup,
+              mesh: pMesh,
+              data: pd,
+              angle: Math.random() * Math.PI * 2,
+              moonMesh
+            });
+          });
+
+          // Raycast Click Selection
+          const raycaster = new THREE.Raycaster();
+          const mouse = new THREE.Vector2();
+
+          const handleMouseClick = (e) => {
+            if (isDragging) return;
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(sensorMeshes);
+
+            if (intersects.length > 0) {
+              onSelectSensor(intersects[0].object.userData);
+            } else {
+              onSelectSensor(null);
+            }
+          };
+
+          // Drag Orbit rotations + Inertia variables
+          let isDragging = false;
+          let previousMousePosition = { x: 0, y: 0 };
+          let dragMoveOffset = 0;
+          let rotationVelocityX = 0;
+          let rotationVelocityY = 0;
+
+          const handleMouseDown = () => {
+            isDragging = true;
+            dragMoveOffset = 0;
+            rotationVelocityX = 0;
+            rotationVelocityY = 0;
+          };
+
+          const handleMouseMove = (e) => {
+            const deltaMove = {
+              x: e.offsetX - previousMousePosition.x,
+              y: e.offsetY - previousMousePosition.y,
+            };
+
+            if (isDragging) {
+              dragMoveOffset += Math.abs(deltaMove.x) + Math.abs(deltaMove.y);
+              globeGroup.rotation.y += deltaMove.x * 0.005;
+              globeGroup.rotation.x += deltaMove.y * 0.005;
+              solarGroup.rotation.y += deltaMove.x * 0.003;
+
+              rotationVelocityY = deltaMove.x * 0.04;
+              rotationVelocityX = deltaMove.y * 0.04;
+            }
+
+            previousMousePosition = {
+              x: e.offsetX,
+              y: e.offsetY,
+            };
+          };
+
+          const handleMouseUp = (e) => {
+            if (dragMoveOffset < 5) {
+              handleMouseClick(e);
+            }
+            isDragging = false;
+          };
+
+          const domEl = renderer.domElement;
+          domEl.addEventListener('mousedown', handleMouseDown);
+          domEl.addEventListener('mousemove', handleMouseMove);
+          domEl.addEventListener('mouseup', handleMouseUp);
+
+          // Custom Mouse Wheel Zoom listener
+          const handleWheel = (e) => {
+            e.preventDefault();
+            const zoomSpeed = 0.005;
+            zoomRadiusRef.current += e.deltaY * zoomSpeed;
+            if (viewMode === 'solarsystem') {
+              zoomRadiusRef.current = Math.max(6.0, Math.min(zoomRadiusRef.current, 25.0));
+            } else {
+              zoomRadiusRef.current = Math.max(3.2, Math.min(zoomRadiusRef.current, 16.0));
+            }
+          };
+          domEl.addEventListener('wheel', handleWheel, { passive: false });
+
+          // Animation frames
+          const clock = new THREE.Clock();
+          let earthOrbitAngle = 0;
+          let marsOrbitAngle = Math.PI / 3;
+          let moonOrbitAngle = 0;
+
+          const animate = () => {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const adjustedDelta = delta * timeScale;
+
+            gridMesh.visible = activeLayers.grid;
+            pointsGlobe.visible = activeLayers.earth;
+            routesGroup.visible = activeLayers.aviation;
+            sensorGroup.visible = activeLayers.grid;
+            
+            const satelliteLimit = selectedYear === 2015 ? 3 : selectedYear === 2020 ? 6 : 12;
+            satellites.forEach((sat, idx) => {
+              sat.mesh.visible = activeLayers.space && (idx < satelliteLimit);
+            });
+            spaceGroup.visible = activeLayers.space;
+            anomaliesGroup.visible = activeLayers.weather || activeLayers.geology;
+
+            globeGroup.visible = (viewMode === 'earth');
+            solarGroup.visible = (viewMode === 'solarsystem');
+
+            let shakeOffsetX = 0;
+            let shakeOffsetY = 0;
+            if (shakeIntensity > 0) {
+              shakeOffsetX = (Math.random() - 0.5) * shakeIntensity * 0.15;
+              shakeOffsetY = (Math.random() - 0.5) * shakeIntensity * 0.15;
+            }
+
+            let targetRadius = zoomRadiusRef.current;
+            if (viewMode === 'solarsystem') {
+              const dest = new THREE.Vector3(0, targetRadius * 0.5, targetRadius);
+              camera.position.lerp(dest, 0.05);
+              camera.lookAt(0, 0, 0);
+            } else if (cameraTarget && viewMode === 'earth') {
+              const dest = latLonToVector3(cameraTarget.lat, cameraTarget.lon, cameraTarget.zoom);
+              camera.position.lerp(dest, 0.05);
+              camera.lookAt(0, 0, 0);
+            } else {
+              const dest = new THREE.Vector3(0, 0, targetRadius);
+              camera.position.lerp(dest, 0.05);
+              camera.lookAt(0, 0, 0);
+            }
+
+            camera.position.x += shakeOffsetX;
+            camera.position.y += shakeOffsetY;
+
+            if (viewMode === 'earth') {
+              if (!isDragging) {
+                // Apply rotation inertia physics
+                globeGroup.rotation.y += rotationVelocityY * adjustedDelta;
+                globeGroup.rotation.x += rotationVelocityX * adjustedDelta;
+                rotationVelocityY *= Math.pow(0.95, adjustedDelta);
+                rotationVelocityX *= Math.pow(0.95, adjustedDelta);
+                
+                // Slow continuous auto-rotation
+                globeGroup.rotation.y += 0.03 * adjustedDelta;
+              }
+
+              if (activeLayers.aviation) {
+                planes.forEach((p) => {
+                  p.progress += p.speed * adjustedDelta * 0.1;
+                  if (p.progress > 1) p.progress = 0;
+                  p.mesh.position.copy(p.curve.getPointAt(p.progress));
+                });
+              }
+
+              if (activeLayers.space) {
+                satellites.forEach((sat) => {
+                  sat.angle += sat.speed * adjustedDelta * 0.1;
+                  const x = sat.radius * Math.cos(sat.angle);
+                  const y = sat.radius * Math.sin(sat.angle);
+                  const pos = new THREE.Vector3(x, y, 0).applyAxisAngle(sat.axis, sat.angle);
+                  sat.mesh.position.copy(pos);
+                });
+              }
+
+              if (activeLayers.weather || activeLayers.geology) {
+                anomalies.forEach((a) => {
+                  a.scale += a.speed * adjustedDelta * 0.5 * a.pulseDir;
+                  if (a.scale > a.maxScale) a.pulseDir = -1;
+                  else if (a.scale < 0.1) { a.pulseDir = 1; a.scale = 0.1; }
+                  a.mesh.scale.set(a.scale, a.scale, 1);
+                  
+                  const mat = a.mesh.material;
+                  mat.opacity = Math.max(0, 0.8 * (1 - a.scale / a.maxScale));
+                });
+              }
+            }
+
+            if (viewMode === 'solarsystem') {
+              if (!isDragging) {
+                solarGroup.rotation.y += rotationVelocityY * 0.5 * adjustedDelta;
+                rotationVelocityY *= Math.pow(0.95, adjustedDelta);
+              }
+              
+              sunMesh.rotation.y += 0.01 * adjustedDelta;
+
+              // Animate all 8 planets smoothly
+              planetMeshes.forEach((pm) => {
+                pm.angle += pm.data.speed * adjustedDelta * 0.2;
+                const px = pm.data.radius * Math.cos(pm.angle);
+                const pz = pm.data.radius * Math.sin(pm.angle);
+                pm.group.position.set(px, 0, pz);
+                pm.mesh.rotation.y += 0.08 * adjustedDelta;
+
+                if (pm.moonMesh) {
+                  moonOrbitAngle += 0.22 * adjustedDelta;
+                  pm.moonMesh.position.x = 0.24 * Math.cos(moonOrbitAngle);
+                  pm.moonMesh.position.z = 0.24 * Math.sin(moonOrbitAngle);
+                }
+              });
+            }
+
+            renderer.render(scene, camera);
+            camera.position.x -= shakeOffsetX;
+            camera.position.y -= shakeOffsetY;
+          };
+
+          animate();
+
+          const handleResize = () => {
+            if (!containerRef.current || !rendererRef.current) return;
+            camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+            camera.updateProjectionMatrix();
+            rendererRef.current.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+          };
+
+          window.addEventListener('resize', handleResize);
+
+          return () => {
+            domEl.removeEventListener('mousedown', handleMouseDown);
+            domEl.removeEventListener('mousemove', handleMouseMove);
+            domEl.removeEventListener('mouseup', handleMouseUp);
+            domEl.removeEventListener('wheel', handleWheel);
+            window.removeEventListener('resize', handleResize);
+            if (rendererRef.current) {
+              if (rendererRef.current.domElement) {
+                rendererRef.current.domElement.remove();
+              }
+              rendererRef.current.dispose();
+            }
+            innerSphereGeo.dispose();
+            innerSphereMat.dispose();
+            gridGeo.dispose();
+            gridMat.dispose();
+            pointsGeo.dispose();
+            pointsMat.dispose();
+            cityGeo.dispose();
+            cityMat.dispose();
+            sensorGeo.dispose();
+            planeGeo.dispose();
+            planeMat.dispose();
+            satGeo.dispose();
+            satMat.dispose();
+            sunGeo.dispose();
+            sunMat.dispose();
+            materialsToDispose.forEach((mat) => mat.dispose());
+          };
+        }, [activeLayers, timeScale, viewMode, cameraTarget, shakeIntensity, selectedYear, onSelectSensor]);
+
+        return React.createElement('div', { ref: containerRef, className: 'w-full h-full relative', style: { minHeight: '400px' } });
+      };
+
+      // ==========================================
+      // 3. SIDEBAR HUD COMPONENT
+      // ==========================================
+
+      // ==========================================
+      // 3. SIDEBAR HUD COMPONENT (16 OPERATIONS DECKS)
+      // ==========================================
+
+      const Sidebar = ({ activeDeck, setActiveDeck }) => {
+        const menuItems = [
+          { key: 'earth', label: '🌍 Earth', icon: Globe },
+          { key: 'aviation', label: '✈ Aviation Ops', icon: Plane },
+          { key: 'space', label: '🛰 Orbital Ops', icon: Orbit },
+          { key: 'maritime', label: '🚢 Maritime Ops', icon: Ship },
+          { key: 'energy', label: '⚡ Energy Ops', icon: Cpu },
+          { key: 'climate', label: '🌦 Climate Ops', icon: CloudRain },
+          { key: 'environment', label: '🌱 Environment', icon: Grid3X3 },
+          { key: 'internet', label: '🌐 Internet Ops', icon: Wifi },
+          { key: 'economy', label: '📈 Economy Ops', icon: Activity },
+          { key: 'supplychain', label: '🏭 Supply Chain', icon: Sliders },
+          { key: 'health', label: '🧬 Health Ops', icon: Heart },
+          { key: 'emergency', label: '🚨 Emergency', icon: ShieldAlert },
+          { key: 'aicmd', label: '🤖 AI Command', icon: Brain },
+          { key: 'analytics', label: '📊 Analytics', icon: Gauge },
+          { key: 'timeline', label: '📅 Timeline', icon: Clock },
+          { key: 'settings', label: '⚙ Settings', icon: Settings },
+        ];
+
+        return React.createElement('aside', { className: 'w-[260px] h-full flex flex-col border-r border-slate-800 bg-slate-900/50 backdrop-blur-xl p-3 select-none overflow-y-auto' }, [
+          React.createElement('div', { key: 'side-title', className: 'mb-4 flex items-center gap-2 border-b border-slate-800 pb-3' }, [
+            React.createElement('div', { key: 'icon-wrap', className: 'w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center border border-white/10 shadow-lg shadow-blue-500/20' }, 
+              React.createElement(Globe, { className: 'w-4.5 h-4.5 text-white' })
+            ),
+            React.createElement('div', { key: 'txt-wrap' }, [
+              React.createElement('h2', { key: 'h2', className: 'text-sm font-extrabold tracking-wider text-slate-300 font-display' }, 'WORLD ENGINE'),
+              React.createElement('span', { key: 'span', className: 'text-[9px] uppercase font-mono tracking-widest text-cyan-500 font-bold block' }, 'Operations OS v2.0')
+            ])
+          ]),
+
+          React.createElement('div', { key: 'side-content', className: 'flex-1 flex flex-col gap-1' }, 
+            menuItems.map((item) => {
+              const isActive = activeDeck === item.key;
+              return React.createElement('button', {
+                key: item.key,
+                onClick: () => setActiveDeck(isActive ? null : item.key),
+                className: `w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-xs transition-all duration-200 font-bold ${
+                  isActive
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-500 shadow-sm'
+                    : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/30 hover:text-slate-300'
+                }`
+              }, [
+                React.createElement('div', { key: 'btn-left', className: 'flex items-center gap-2.5' }, [
+                  React.createElement(item.icon, { className: `w-4 h-4 ${isActive ? 'text-blue-500' : 'text-slate-500'}` }),
+                  React.createElement('span', null, item.label)
+                ]),
+                React.createElement('div', { key: 'btn-right', className: `w-1.5 h-1.5 rounded-full transition-all ${
+                  isActive 
+                    ? 'bg-blue-500 shadow-glow pulse-active' 
+                    : 'bg-transparent'
+                }` })
+              ]);
+            })
+          )
+        ]);
+      };
+
+      // ==========================================
+      // 4. WORLD PULSE LOG TICKER COMPONENT
+      // ==========================================
+
+      const WorldPulse = () => {
+        const [logs, setLogs] = useState([]);
+        const scrollRef = useRef(null);
+
+        useEffect(() => {
+          const initialLogs = [];
+          for (let i = 0; i < 8; i++) {
+            const template = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)];
+            const date = new Date(Date.now() - (8 - i) * 60000);
+            initialLogs.push({
+              id: Math.random().toString(),
+              timestamp: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              source: template.source,
+              message: template.message,
+              severity: template.severity,
+            });
+          }
+          setLogs(initialLogs);
+        }, []);
+
+        useEffect(() => {
+          const interval = setInterval(() => {
+            const template = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)];
+            const now = new Date();
+            const newLog = {
+              id: Math.random().toString(),
+              timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              source: template.source,
+              message: template.message,
+              severity: template.severity,
+            };
+            setLogs((prev) => [...prev.slice(-25), newLog]);
+          }, 4500);
+
+          return () => clearInterval(interval);
+        }, []);
+
+        useEffect(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        }, [logs]);
+
+        const getSourceColor = (source) => {
+          switch (source) {
+            case 'AVIATION': return 'text-blue-400';
+            case 'GEOLOGY': return 'text-red-400';
+            case 'SPACE': return 'text-purple-400';
+            case 'WEATHER': return 'text-yellow-400';
+            case 'NETWORK': return 'text-green-400';
+          }
+        };
+
+        const getSeverityBadge = (severity) => {
+          switch (severity) {
+            case 'INFO': return 'text-[8px] border border-blue-500/30 bg-blue-500/10 text-blue-400';
+            case 'WARNING': return 'text-[8px] border border-amber-500/30 bg-amber-500/10 text-amber-400';
+            case 'ALERT': return 'text-[8px] border border-red-500/30 bg-red-500/10 text-red-400';
+          }
+        };
+
+        return React.createElement('div', { className: 'w-[300px] h-[220px] flex flex-col border border-white/10 bg-slate-950/80 backdrop-blur-xl rounded-xl overflow-hidden shadow-lg select-none' }, [
+          React.createElement('div', { key: 'wp-hdr', className: 'px-3 py-2 border-b border-white/10 flex items-center justify-between' }, [
+            React.createElement('div', { key: 'wp-ttl', className: 'flex items-center gap-2' }, [
+              React.createElement(Activity, { className: 'w-4 h-4 text-blue-400 pulse-active' }),
+              React.createElement('h3', { className: 'text-xs font-bold tracking-wide text-slate-100 font-display' }, 'WORLD PULSE')
+            ]),
+            React.createElement('div', { key: 'wp-live', className: 'flex items-center gap-1 text-[8px] font-mono text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full font-bold' }, [
+              React.createElement(Wifi, { className: 'w-2.5 h-2.5 animate-pulse' }),
+              React.createElement('span', null, 'LIVE FEEDS')
+            ])
+          ]),
+
+          React.createElement('div', { key: 'wp-body', ref: scrollRef, className: 'flex-1 p-2.5 overflow-y-auto font-mono text-[10px] leading-relaxed flex flex-col gap-2 bg-slate-900/20 scroll-smooth' }, 
+            logs.map((log) => React.createElement('div', { key: log.id, className: 'border-b border-white/[0.03] pb-1 last:border-b-0' }, [
+              React.createElement('div', { key: 'row-hdr', className: 'flex items-center justify-between mb-0.5' }, [
+                React.createElement('span', { className: 'text-slate-500 text-[9px]' }, log.timestamp),
+                React.createElement('div', { className: 'flex gap-1.5 items-center font-bold text-[8px]' }, [
+                  React.createElement('span', { className: `${getSourceColor(log.source)}` }, log.source),
+                  React.createElement('span', { className: `px-1 rounded uppercase ${getSeverityBadge(log.severity)}` }, log.severity)
+                ])
+              ]),
+              React.createElement('p', { key: 'row-msg', className: 'text-slate-300 break-words font-semibold' }, log.message)
+            ]))
+          ),
+
+          React.createElement('div', { key: 'wp-ftr', className: 'px-3 py-1.5 border-t border-white/10 bg-slate-900/40 flex justify-between items-center text-[9px] font-mono text-slate-500 font-bold' }, [
+            React.createElement('div', { key: 'wp-buff', className: 'flex items-center gap-1' }, [
+              React.createElement(Terminal, { className: 'w-3 h-3 text-slate-500' }),
+              React.createElement('span', null, `Buffer: ${logs.length}/25`)
+            ]),
+            React.createElement('span', { key: 'wp-stat' }, 'Nominal Link')
+          ])
+        ]);
+      };
+
+      // ==========================================
+      // 5. AI COMMAND CENTER COMPONENT
+      // ==========================================
+
+      // AICommand component removed. Missions are integrated directly inside OperationsControl.
+
+      // ==========================================
+      // 6. MISSION CONTROL SUBMODULE COMPONENT
+      // ==========================================
+
+      const OperationsControl = ({ 
+        activeDeck, 
+        onClose, 
+        activeLayers, 
+        toggleLayer, 
+        selectedYear, 
+        setSelectedYear,
+        isPlaying,
+        setIsPlaying,
+        isReplaying,
+        setIsReplaying,
+        isRecording,
+        setIsRecording,
+        sessionLogs,
+        onTriggerMission,
+        missionStatus,
+        missionLogs,
+        missionReport
+      }) => {
+        if (!activeDeck) return null;
+
+        // Local state for tabs and sub-pages
+        const [activeSubTab, setActiveSubTab] = useState('controls');
+        const [subPage, setSubPage] = useState(null);
+
+        // Reset local page/tab states when deck changes
+        useEffect(() => {
+          setSubPage(null);
+          setActiveSubTab('controls');
+        }, [activeDeck]);
+
+        // Subpage rendering logic
+        const renderSubPage = () => {
+          const backButton = React.createElement('button', {
+            onClick: () => setSubPage(null),
+            className: 'mb-4 px-2.5 py-1 rounded bg-white/10 hover:bg-white/15 text-[10px] font-bold text-slate-300 flex items-center gap-1.5 transition-colors self-start'
+          }, '← Back to Sub-Features');
+
+          switch (subPage) {
+            case 'flight-audit':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-teal-400 uppercase tracking-wider' }, '✈ Airway Corridor Capacity Audit'),
+                React.createElement('p', { className: 'text-[11px] text-slate-400 leading-normal' }, 'Real-time slot allocation review across Reims, Munich, and London sectors. Density limits mapped below:'),
+                React.createElement('div', { className: 'space-y-2 bg-slate-900/50 p-3 rounded-lg border border-white/5 font-mono text-[10px]' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Reims East Corridor'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '42% Load (Nominal)')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Munich Sector 4'),
+                    React.createElement('span', { className: 'text-amber-500 font-bold' }, '88% Load (Congestion Alert)')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Atlantic Entry Track Delta'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '14 active routes')
+                  ])
+                ]),
+                React.createElement('div', { className: 'flex gap-2' }, [
+                  React.createElement('button', {
+                    onClick: () => toggleLayer('aviation'),
+                    className: 'flex-1 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-bold transition-all text-center'
+                  }, 'Toggle Global Flights Layer'),
+                  React.createElement('button', {
+                    onClick: () => {
+                      if (isRecording) {
+                        setIsRecording(true);
+                      }
+                    },
+                    className: 'px-3 py-1.5 rounded bg-white/5 border border-white/10 text-[10px] hover:bg-white/10 font-bold'
+                  }, 'Log Audit')
+                ])
+              ]);
+
+            case 'airport-status':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-teal-400 uppercase tracking-wider' }, '🏢 Terminal Ground Nodes status'),
+                React.createElement('div', { className: 'space-y-3' }, [
+                  ['Munich Terminal 2', 92, 'DELAY 45m', 'text-amber-400'],
+                  ['London Heathrow T5', 84, 'ON TIME', 'text-green-400'],
+                  ['Tokyo Haneda Int\'l', 98, 'ON TIME', 'text-green-400']
+                ].map((airport, idx) => React.createElement('div', { key: idx, className: 'bg-slate-900/50 p-2.5 rounded-lg border border-white/5 text-[10px] space-y-1.5' }, [
+                  React.createElement('div', { className: 'flex justify-between font-bold' }, [
+                    React.createElement('span', null, airport[0]),
+                    React.createElement('span', { className: airport[3] }, airport[2])
+                  ]),
+                  React.createElement('div', { className: 'w-full bg-slate-800 h-1.5 rounded-full overflow-hidden' }, 
+                    React.createElement('div', { className: 'h-full bg-teal-500', style: { width: `${airport[1]}%` } })
+                  ),
+                  React.createElement('span', { className: 'text-[8px] text-slate-500 block' }, `Grid node throughput capacity at ${airport[1]}%`)
+                ])))
+              ]);
+
+            case 'debris-grid':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-purple-400 uppercase tracking-wider' }, '🛰 Orbital Space Debris Catalog'),
+                React.createElement('p', { className: 'text-[11px] text-slate-400 leading-normal' }, 'Tracking hyper-velocity telemetry vectors in Low Earth Orbit (LEO). Debris mitigation status:'),
+                React.createElement('div', { className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-3 rounded-lg border border-white/5 font-mono text-[10px]' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-500 block' }, 'CATALOGED'),
+                    React.createElement('span', { className: 'text-sm font-bold text-red-500' }, '23,942')
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-500 block' }, 'COLLISION PROB.'),
+                    React.createElement('span', { className: 'text-sm font-bold text-amber-500' }, '0.04% / yr')
+                  ]),
+                  React.createElement('div', { className: 'col-span-2 mt-2 pt-2 border-t border-white/5 flex justify-between' }, [
+                    React.createElement('span', null, 'Active Space Guards'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '4 Stations Online')
+                  ])
+                ])
+              ]);
+
+            case 'starlink-telemetry':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-purple-400 uppercase tracking-wider' }, '📡 Ground Uplink Gateway Matrix'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 font-mono text-[10px]' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Gateway Ping Rate'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '18ms')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Constellation Links'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '6,429 online')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Downlink Bandwidth'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '482 Mbps')
+                  ])
+                ])
+              ]);
+
+            case 'ocean-sonar':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-blue-400 uppercase tracking-wider' }, '🚢 Whale Migration Sonar Grid'),
+                React.createElement('p', { className: 'text-[11px] text-slate-400 leading-normal' }, 'Dispatched audio tracking buoys. High density sonar grid protecting Pacific/Atlantic migratory routes:'),
+                React.createElement('div', { className: 'p-3 bg-blue-950/20 border border-blue-900/20 rounded-lg space-y-2 text-[10px] text-blue-200' }, [
+                  React.createElement('div', { className: 'flex justify-between font-bold' }, [
+                    React.createElement('span', null, 'Buoy Grid System'),
+                    React.createElement('span', null, 'ONLINE')
+                  ]),
+                  React.createElement('p', { className: 'text-[9px] text-blue-300' }, 'No active container ships intersecting protected coordinates (50m safety buffers dispatch active).')
+                ])
+              ]);
+
+            case 'canal-dwell':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-blue-400 uppercase tracking-wider' }, '⚓ Suez Canal Queue Stress'),
+                React.createElement('div', { className: 'space-y-2 bg-slate-900/50 p-2.5 rounded-lg border border-white/5 text-[10px]' }, [
+                  React.createElement('div', { className: 'flex justify-between border-b border-white/5 pb-1 font-bold text-slate-500 text-[8px]' }, [
+                    React.createElement('span', null, 'Vessel Identifier'),
+                    React.createElement('span', null, 'Transit Wait Dwell')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, '🛳 EVER GIVEN'),
+                    React.createElement('span', { className: 'text-red-400 font-bold' }, '3.2 days')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, '🛳 COSCO SHIPPING'),
+                    React.createElement('span', { className: 'text-amber-400 font-bold' }, '1.8 days')
+                  ])
+                ])
+              ]);
+
+            case 'battery-routing':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-yellow-400 uppercase tracking-wider' }, '⚡ Regional Power Storage Battery Banks'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'California Tesla Pack'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '94% charged')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Australian Hornsdale'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '82% efficiency')
+                  ])
+                ])
+              ]);
+
+            case 'renewable-generation':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-yellow-400 uppercase tracking-wider' }, '🌱 Hydrosolar Decarbonization Split'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Solar Yield Index'),
+                    React.createElement('span', { className: 'text-amber-500 font-bold' }, '980 W/m²')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Hydro Reserve Headroom'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '44% Capacity')
+                  ])
+                ])
+              ]);
+
+            case 'carbon-sensors':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-orange-400 uppercase tracking-wider' }, '🌦 Atmospheric CO₂ Parts-Per-Million'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Atmospheric CO₂ Index'),
+                    React.createElement('span', { className: 'text-red-400 font-bold' }, '423.8 ppm')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Greenhouse Radiative forcing'),
+                    React.createElement('span', { className: 'text-red-400' }, '+1.32 W/m²')
+                  ])
+                ])
+              ]);
+
+            case 'wildfire-hotspots':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-emerald-400 uppercase tracking-wider' }, '🔥 Wildfire Thermal Hotspots Grid'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Active wildfire fronts'),
+                    React.createElement('span', { className: 'text-red-400 font-bold' }, '231 hotspots')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Forest moisture coefficient'),
+                    React.createElement('span', { className: 'text-red-400' }, '14% (Critical)')
+                  ])
+                ])
+              ]);
+
+            case 'bgp-routing':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-teal-400 uppercase tracking-wider' }, '🌐 Core DNS Routing Autonomy'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Global transit pathways'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '99.98% OK')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Cloudflare routing loops'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '12ms latency')
+                  ])
+                ])
+              ]);
+
+            case 'gdp-delta':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-blue-400 uppercase tracking-wider' }, '📈 Sovereign Growth Analytics'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Brent Crude Oil Price'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '$84.20/bbl')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Global shipping delays stress'),
+                    React.createElement('span', { className: 'text-amber-500 font-bold' }, '+8%')
+                  ])
+                ])
+              ]);
+
+            case 'hospital-load':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-green-400 uppercase tracking-wider' }, '🧬 ICU Clinical Bed Reserves'),
+                React.createElement('div', { className: 'bg-slate-900/50 p-3 rounded-lg border border-white/5 space-y-2 text-[10px] font-mono' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'ICU Clinical Occupancy'),
+                    React.createElement('span', { className: 'text-green-400' }, '64%')
+                  ]),
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Air Quality Index Avg'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '68 Good')
+                  ])
+                ])
+              ]);
+
+            case 'tremor-feed':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-red-400 uppercase tracking-wider' }, '🚨 Live Tremor Fault Line Monitor'),
+                React.createElement('div', { className: 'p-3 bg-red-950/20 border border-red-900/20 rounded-lg text-red-200 text-[10px] space-y-1.5' }, [
+                  React.createElement('p', null, 'Japan region Tohoku trench: M 7.2 earthquake recorded (5 minutes ago). Fault line highlighted in red.'),
+                  React.createElement('button', {
+                    onClick: () => {
+                      toggleLayer('geology');
+                      toggleLayer('grid');
+                    },
+                    className: 'w-full py-1.5 rounded bg-red-600 hover:bg-red-700 font-bold text-white text-center'
+                  }, 'Trigger Fault Highlight flyby')
+                ])
+              ]);
+
+            case 'mission-logs':
+              return React.createElement('div', { className: 'space-y-4' }, [
+                backButton,
+                React.createElement('h4', { className: 'text-xs font-bold text-purple-400 uppercase tracking-wider' }, '🤖 Operations Commander Report Center'),
+                React.createElement('div', { className: 'p-2.5 bg-slate-900 border border-white/5 rounded-lg text-[9px] font-mono text-purple-300 max-h-[140px] overflow-y-auto space-y-1' }, 
+                  missionLogs.length > 0
+                    ? missionLogs.map((log, idx) => React.createElement('div', { key: idx }, `> ${log}`))
+                    : [React.createElement('div', { key: 'empty' }, 'No active mission reports logs.')]
+                ),
+                missionReport && React.createElement('div', { className: 'p-2 bg-purple-950/20 border border-purple-900/20 rounded-lg text-[9px] text-purple-200 space-y-1 font-mono' }, [
+                  React.createElement('p', null, `Finding: ${missionReport.finding}`),
+                  React.createElement('p', null, `Risk assessment: ${missionReport.risk}`)
+                ])
+              ]);
+
+            default:
+              return null;
+          }
+        };
+
+        const renderControlsTab = () => {
+          switch (activeDeck) {
+            case 'earth':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'm1', className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-2.5 rounded-lg border border-white/5' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'GLOBE RADIUS'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, '6,371 km')
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'DENSITY INDEX'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, '8,429 dots')
+                  ])
+                ])
+              ]);
+
+            case 'aviation':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'av1', className: 'grid grid-cols-3 gap-2' }, [
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'CONGESTION'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-amber-500' }, '42%')
+                  ]),
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'FUEL BURN'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-teal-400' }, '14.2K kg/s')
+                  ]),
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'ROUTINGS'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, selectedYear === 2020 ? '1' : '15')
+                  ])
+                ])
+              ]);
+
+            case 'space':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'sp1', className: 'grid grid-cols-2 gap-2' }, [
+                  React.createElement('div', { className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'STARLINK NODES'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-indigo-400' }, `${selectedYear === 2015 ? '300' : selectedYear === 2020 ? '900' : '6,429'} Online`)
+                  ]),
+                  React.createElement('div', { className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'ORBITAL DEBRIS'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-red-500' }, '23,942 cataloged')
+                  ])
+                ])
+              ]);
+
+            case 'maritime':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'mr1', className: 'grid grid-cols-3 gap-2' }, [
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'CARGO FLEET'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, selectedYear === 2020 ? '6.4K' : '12.9K')
+                  ]),
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'PORT WAIT'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-amber-500' }, selectedYear === 2020 ? '4.8d' : '2.1d')
+                  ]),
+                  React.createElement('div', { className: 'p-2 bg-slate-900/50 border border-white/5 rounded-lg text-center' }, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'SEA SPEED'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-teal-400' }, selectedYear === 2020 ? '8.4 knots' : '14 knots')
+                  ])
+                ])
+              ]);
+
+            case 'energy':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'en1', className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-2 border border-white/5 rounded-lg' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'GLOBAL DEMAND'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, '18.4 TW')
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'RENEWABLES SHARE'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-green-400' }, '39.2%')
+                  ])
+                ])
+              ]);
+
+            case 'climate':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'cl1', className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-2.5 border border-white/5 rounded-lg' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'CO2 SENSOR'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-red-500' }, `${selectedYear === 2015 ? '402.1' : selectedYear === 2020 ? '408.1' : '423.8'} ppm`)
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'TEMP ANOMALY'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-amber-500' }, '+1.32°C')
+                  ])
+                ])
+              ]);
+
+            case 'environment':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'ev1', className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg space-y-1' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'Deforestation wildfire rate'),
+                    React.createElement('span', { className: 'text-amber-500 font-bold' }, '4.8M ha/yr')
+                  ])
+                ])
+              ]);
+
+            case 'internet':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'it1', className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg space-y-1' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'BGP Route Integrity'),
+                    React.createElement('span', { className: 'text-green-400 font-bold' }, '99.98% OK')
+                  ])
+                ])
+              ]);
+
+            case 'economy':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'ec1', className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-2.5 border border-white/5 rounded-lg' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'GLOBAL GDP DELTA'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-blue-400' }, `${selectedYear === 2020 ? '-4.2%' : '+2.8%'}`)
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'BRENT CRUDE'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-slate-300' }, '$84.20/bbl')
+                  ])
+                ])
+              ]);
+
+            case 'supplychain':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'sc1', className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg space-y-1' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'TSMC Fab Queue'),
+                    React.createElement('span', { className: 'text-amber-500 font-bold' }, '18-week delay')
+                  ])
+                ])
+              ]);
+
+            case 'health':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'he1', className: 'grid grid-cols-2 gap-2 bg-slate-900/50 p-2.5 border border-white/5 rounded-lg' }, [
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'ICU BED LOAD'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-teal-400' }, `${selectedYear === 2020 ? '94%' : '64%'}`)
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('span', { className: 'text-[8px] text-slate-400 block font-bold' }, 'AQI METRIC'),
+                    React.createElement('span', { className: 'text-xs font-extrabold text-green-400' }, '68 Good')
+                  ])
+                ])
+              ]);
+
+            case 'emergency':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'em1', className: 'p-2.5 bg-red-950/20 border border-red-900/20 rounded-lg text-red-200' }, 'Live Seismic monitoring feed active. High risk regions blinking.')
+              ]);
+
+            case 'aicmd':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'ai1', className: 'p-2.5 bg-purple-950/20 border border-purple-900/20 rounded-lg text-purple-200' }, 'AI Mission Commander ready. Load exploration scripts in Sub-Features tab.')
+              ]);
+
+            case 'analytics':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'an1', className: 'bg-slate-900/50 p-2.5 border border-white/5 rounded-lg space-y-1' }, [
+                  React.createElement('div', { className: 'flex justify-between' }, [
+                    React.createElement('span', null, 'NOAA Sensors Online'),
+                    React.createElement('span', { className: 'text-teal-400 font-bold' }, '1,290 stations')
+                  ])
+                ])
+              ]);
+
+            case 'timeline':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'tl1', className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg space-y-2' }, [
+                  React.createElement('span', null, 'Temporal sweeps coordinates: play simulation in lower slider.'),
+                  React.createElement('button', {
+                    onClick: () => setIsReplaying(!isReplaying),
+                    className: 'w-full py-1 bg-blue-600 rounded text-white font-bold text-[10px]'
+                  }, isReplaying ? 'Pause Temporal Simulation' : 'Launch Temporal Sweep')
+                ])
+              ]);
+
+            case 'settings':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[11px] text-slate-300' }, [
+                React.createElement('div', { key: 'st1', className: 'p-2.5 bg-slate-900/50 border border-white/5 rounded-lg space-y-2' }, 'Settings panel controls. Rebranded theme to Dark Operations mode.')
+              ]);
+
+            default:
+              return null;
+          }
+        };
+
+        const renderSubfeaturesTab = () => {
+          const listSubfeatures = () => {
+            switch (activeDeck) {
+              case 'aviation':
+                return [
+                  { id: 'flight-audit', label: '✈ Airway Corridor Capacity Audit' },
+                  { id: 'airport-status', label: '🏢 Terminal Ground Nodes' }
+                ];
+              case 'space':
+                return [
+                  { id: 'debris-grid', label: '🛰 Orbital Space Debris Catalog' },
+                  { id: 'starlink-telemetry', label: '📡 Ground Uplink Gateway Matrix' }
+                ];
+              case 'maritime':
+                return [
+                  { id: 'ocean-sonar', label: '🚢 Whale Migration Sonar Grid' },
+                  { id: 'canal-dwell', label: '⚓ Suez Canal Queue Stress' }
+                ];
+              case 'energy':
+                return [
+                  { id: 'battery-routing', label: '⚡ Power Storage Battery Banks' },
+                  { id: 'renewable-generation', label: '🌱 Hydrosolar Decarbonization Split' }
+                ];
+              case 'climate':
+                return [
+                  { id: 'carbon-sensors', label: '🌦 Atmospheric CO₂ parts-per-million' }
+                ];
+              case 'environment':
+                return [
+                  { id: 'wildfire-hotspots', label: '🔥 Wildfire Thermal Hotspots Grid' }
+                ];
+              case 'internet':
+                return [
+                  { id: 'bgp-routing', label: '🌐 Core DNS Routing Autonomy' }
+                ];
+              case 'economy':
+                return [
+                  { id: 'gdp-delta', label: '📈 Sovereign Growth Analytics' }
+                ];
+              case 'health':
+                return [
+                  { id: 'hospital-load', label: '🧬 ICU Clinical Bed Reserves' }
+                ];
+              case 'emergency':
+                return [
+                  { id: 'tremor-feed', label: '🚨 Live Tremor Fault Line Monitor' }
+                ];
+              case 'aicmd':
+                return [
+                  { id: 'mission-logs', label: '🤖 Mission Operator Report Center' }
+                ];
+              default:
+                return [];
+            }
+          };
+
+          const list = listSubfeatures();
+
+          if (list.length === 0) {
+            return React.createElement('div', { className: 'p-3 bg-slate-900/50 rounded-lg border border-white/5 text-[10px] text-slate-400 font-mono text-center' }, 'No sub-features defined for this deck.');
+          }
+
+          return React.createElement('div', { className: 'space-y-2' }, [
+            React.createElement('span', { className: 'text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-1' }, 'Select Feature Detail Page:'),
+            list.map((item) => React.createElement('button', {
+              key: item.id,
+              onClick: () => setSubPage(item.id),
+              className: 'w-full flex items-center justify-between text-left p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-white/5 text-[10px] font-bold text-slate-200 transition-all hover:scale-[1.02] shadow-sm'
+            }, [
+              React.createElement('span', null, item.label),
+              React.createElement(ArrowRight, { className: 'w-3 h-3 text-slate-500' })
+            ]))
+          ]);
+        };
+
+        const renderTabContent = () => {
+          if (subPage) {
+            return renderSubPage();
+          }
+
+          switch (activeSubTab) {
+            case 'controls':
+              return renderControlsTab();
+            case 'subfeatures':
+              return renderSubfeaturesTab();
+            case 'aimission':
+              return React.createElement('div', { className: 'space-y-3 font-mono text-[10px] text-slate-300' }, [
+                React.createElement('div', { key: 'ai-hdr', className: 'text-[9px] text-slate-500 uppercase font-bold tracking-wider' }, 'AI Mission Control Hub'),
+                React.createElement('div', { key: 'ai-ops', className: 'space-y-1.5' }, [
+                  React.createElement('button', {
+                    onClick: () => {
+                      setActiveSubTab('subfeatures');
+                      setSubPage('mission-logs');
+                      onTriggerMission('europe');
+                    },
+                    className: 'w-full py-1.5 rounded bg-purple-900/50 hover:bg-purple-800 border border-purple-500/20 text-purple-200 font-bold text-left px-3'
+                  }, '🤖 Run Mission: Investigate Europe'),
+                  React.createElement('button', {
+                    onClick: () => {
+                      setActiveSubTab('subfeatures');
+                      setSubPage('mission-logs');
+                      onTriggerMission('amazon');
+                    },
+                    className: 'w-full py-1.5 rounded bg-purple-900/50 hover:bg-purple-800 border border-purple-500/20 text-purple-200 font-bold text-left px-3'
+                  }, '🤖 Run Mission: Amazon Wildfire Response'),
+                  React.createElement('button', {
+                    onClick: () => {
+                      setActiveSubTab('subfeatures');
+                      setSubPage('mission-logs');
+                      onTriggerMission('suez');
+                    },
+                    className: 'w-full py-1.5 rounded bg-purple-900/50 hover:bg-purple-800 border border-purple-500/20 text-purple-200 font-bold text-left px-3'
+                  }, '🤖 Run Mission: Suez Cargo Security')
+                ])
+              ]);
+            default:
+              return null;
+          }
+        };
+
+        return React.createElement('div', { className: 'absolute top-4 bottom-14 left-72 w-[480px] bg-slate-950/95 border border-white/10 rounded-2xl z-20 flex flex-col p-5 shadow-2xl transition-all duration-300 text-slate-100 backdrop-blur-2xl overflow-hidden' }, [
+          // Header
+          React.createElement('div', { key: 'mc-hdr', className: 'flex items-center justify-between border-b border-white/10 pb-3 mb-4 select-none' }, [
+            React.createElement('div', { key: 'mc-ttl', className: 'flex items-center gap-2.5' }, [
+              React.createElement(Sliders, { className: 'w-4 h-4 text-blue-400 animate-pulse' }),
+              React.createElement('div', null, [
+                React.createElement('h3', { className: 'text-xs font-bold tracking-wider uppercase text-slate-200 font-display' }, `${activeDeck} cockpit deck`),
+                React.createElement('span', { className: 'text-[8px] font-mono text-teal-400 tracking-widest block font-bold uppercase' }, 'Dark Mode Decision Center')
+              ])
+            ]),
+            React.createElement('button', { key: 'mc-close', onClick: onClose, className: 'p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 transition-colors' }, 
+              React.createElement(X, { className: 'w-3.5 h-3.5' })
+            )
+          ]),
+
+          // Sub-Tab Navigation Bar (Cockpit Tab Pages)
+          !subPage && React.createElement('div', { key: 'mc-nav', className: 'flex bg-white/5 p-0.5 rounded-lg border border-white/5 text-[9px] font-mono uppercase tracking-wide font-bold mb-4' }, [
+            React.createElement('button', {
+              key: 'tab-ctrls',
+              onClick: () => setActiveSubTab('controls'),
+              className: `flex-1 py-1 rounded text-center transition-all ${activeSubTab === 'controls' ? 'bg-blue-600 text-white font-extrabold' : 'text-slate-400 hover:text-slate-200'}`
+            }, 'Control Center'),
+            React.createElement('button', {
+              key: 'tab-sub',
+              onClick: () => setActiveSubTab('subfeatures'),
+              className: `flex-1 py-1 rounded text-center transition-all ${activeSubTab === 'subfeatures' ? 'bg-blue-600 text-white font-extrabold' : 'text-slate-400 hover:text-slate-200'}`
+            }, 'Sub-Features'),
+            React.createElement('button', {
+              key: 'tab-ai',
+              onClick: () => setActiveSubTab('aimission'),
+              className: `flex-1 py-1 rounded text-center transition-all ${activeSubTab === 'aimission' ? 'bg-blue-600 text-white font-extrabold' : 'text-slate-400 hover:text-slate-200'}`
+            }, 'AI Operator')
+          ]),
+
+          // Dynamic Tab/Sub-Page Body
+          React.createElement('div', { key: 'mc-body', className: 'flex-1 overflow-y-auto pr-1' }, renderTabContent()),
+
+          // Footer
+          React.createElement('div', { key: 'mc-ftr', className: 'pt-3 mt-4 border-t border-white/10 flex items-center justify-between text-[8px] font-mono text-slate-500 font-bold' }, [
+            React.createElement('div', { key: 'f-left', className: 'flex items-center gap-1.5' }, [
+              React.createElement(Clock, { className: 'w-3 h-3 text-slate-400' }),
+              React.createElement('span', null, 'Interval: 100ms')
+            ]),
+            React.createElement('div', { key: 'f-right', className: 'flex items-center gap-1.5' }, [
+              React.createElement(Gauge, { className: 'w-3 h-3 text-slate-400' }),
+              React.createElement('span', null, 'LINK LEVEL: NOMINAL')
+            ])
+          ])
+        ]);
+      };
+
+      // ==========================================
+      // 7. PLANET HEALTH COCKPIT DASHBOARD
+      // ==========================================
+
+      const PlanetHealth = ({ isOpen, onClose }) => {
+        if (!isOpen) return null;
+
+        const sectors = [
+          { name: 'Climate Stability', score: 82, color: 'from-amber-600 to-red-600', status: 'Elevated Risk' },
+          { name: 'Transportation Core', score: 95, color: 'from-blue-600 to-indigo-600', status: 'Nominal' },
+          { name: 'Global Internet Grid', score: 99, color: 'from-teal-600 to-blue-600', status: 'Optimal' },
+          { name: 'Energy Grid Capacity', score: 89, color: 'from-yellow-600 to-green-600', status: 'Optimal' },
+          { name: 'Ocean Biosphere Index', score: 88, color: 'from-orange-600 to-red-600', status: 'High Stress' },
+        ];
+
+        return React.createElement('div', { className: 'absolute inset-0 bg-[#FAF7F0]/90 backdrop-blur-2xl z-40 flex items-center justify-center p-6 select-none font-mono text-stone-700' }, 
+          React.createElement('div', { className: 'w-full max-w-4xl border border-slate-900/10 bg-white p-6 rounded-2xl shadow-2xl relative flex flex-col gap-6 max-h-[90vh] overflow-y-auto' }, [
+            React.createElement('button', { key: 'close-btn', onClick: onClose, className: 'absolute right-4 top-4 p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-stone-500 transition-colors' }, 
+              React.createElement(X, { className: 'w-4 h-4' })
+            ),
+
+            React.createElement('div', { key: 'hdr', className: 'flex items-center gap-3 border-b border-slate-200 pb-4' }, [
+              React.createElement(Heart, { className: 'w-8 h-8 text-red-600 animate-pulse' }),
+              React.createElement('div', null, [
+                React.createElement('h2', { className: 'text-xl font-extrabold tracking-tight text-blue-900 font-display' }, 'PLANET HEALTH COMMAND DECK'),
+                React.createElement('span', { className: 'text-[10px] font-bold text-teal-600 tracking-widest block' }, 'GLOBAL BIO-SPHERIC RUNTIME STATUS')
+              ])
+            ]),
+
+            React.createElement('div', { key: 'metrics', className: 'grid grid-cols-4 gap-4' }, [
+              React.createElement('div', { className: 'p-4 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-sm' }, [
+                React.createElement('span', { className: 'text-[9px] text-slate-500 font-bold block mb-1' }, 'HEALTH SCORE'),
+                React.createElement('span', { className: 'text-2xl font-extrabold text-blue-900 font-display' }, '91%'),
+                React.createElement('span', { className: 'text-[9px] text-green-700 font-bold block mt-1' }, '● NOMINAL')
+              ]),
+              React.createElement('div', { className: 'p-4 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-sm' }, [
+                React.createElement('span', { className: 'text-[9px] text-slate-500 font-bold block mb-1' }, 'CLIMATE SENSOR'),
+                React.createElement('span', { className: 'text-2xl font-extrabold text-red-600 font-display' }, '82%'),
+                React.createElement('span', { className: 'text-[9px] text-red-700 font-bold block mt-1' }, '▲ STRESS')
+              ]),
+              React.createElement('div', { className: 'p-4 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-sm' }, [
+                React.createElement('span', { className: 'text-[9px] text-slate-500 font-bold block mb-1' }, 'WILDLIFE INDEX'),
+                React.createElement('span', { className: 'text-2xl font-extrabold text-amber-600 font-display' }, '76%'),
+                React.createElement('span', { className: 'text-[9px] text-amber-700 font-bold block mt-1' }, '▼ DEFICIT')
+              ]),
+              React.createElement('div', { className: 'p-4 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-sm' }, [
+                React.createElement('span', { className: 'text-[9px] text-slate-500 font-bold block mb-1' }, 'POPULATION STABILITY'),
+                React.createElement('span', { className: 'text-2xl font-extrabold text-stone-700 font-display' }, '92%'),
+                React.createElement('span', { className: 'text-[9px] text-slate-500 font-bold block mt-1' }, '● OPTIMAL')
+              ])
+            ]),
+
+            React.createElement('div', { key: 'sub-sys', className: 'flex-1 flex flex-col gap-4' }, [
+              React.createElement('h3', { className: 'text-xs uppercase font-bold tracking-wider text-slate-500 border-b border-slate-200 pb-2' }, 'Subsystem Health Index'),
+              React.createElement('div', { className: 'grid grid-cols-2 gap-4' }, [
+                ...sectors.map((sec) => React.createElement('div', { key: sec.name, className: 'p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col justify-between gap-3 shadow-sm' }, [
+                  React.createElement('div', { className: 'flex justify-between items-center' }, [
+                    React.createElement('span', { className: 'text-xs font-bold text-stone-800' }, sec.name),
+                    React.createElement('span', { className: `text-[8px] font-mono px-2 py-0.5 rounded font-bold ${
+                      sec.score > 90 
+                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                        : sec.score > 80 
+                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' 
+                        : 'bg-red-100 text-red-700 border border-red-200'
+                    }` }, sec.status)
+                  ]),
+                  React.createElement('div', null, [
+                    React.createElement('div', { className: 'flex justify-between text-[10px] text-slate-500 mb-1' }, [
+                      React.createElement('span', null, 'Target: 100%'),
+                      React.createElement('span', { className: 'font-bold text-stone-800' }, `${sec.score}%`)
+                    ]),
+                    React.createElement('div', { className: 'w-full bg-slate-200 h-2 rounded-full overflow-hidden border border-slate-900/5' }, 
+                      React.createElement('div', { className: `h-full bg-gradient-to-r ${sec.color} transition-all duration-1000`, style: { width: `${sec.score}%` } })
+                    )
+                  ])
+                ])),
+
+                React.createElement('div', { key: 'diag-card', className: 'p-4 bg-purple-50 border border-purple-200 rounded-xl flex gap-3 shadow-sm' }, [
+                  React.createElement(ShieldAlert, { className: 'w-6 h-6 text-purple-700 flex-shrink-0' }),
+                  React.createElement('div', { className: 'space-y-1' }, [
+                    React.createElement('span', { className: 'text-[9px] uppercase text-purple-700 block font-bold tracking-wider' }, 'AI Bio-Diagnostics assessment'),
+                    React.createElement('p', { className: 'text-[10px] leading-relaxed text-purple-950 font-semibold' }, 'Ecological buffers are entering critical compression indices over high latitudes. Ocean salinity rates and greenhouse variables continue to drift from nominal values.')
+                  ])
+                ])
+              ])
+            ]),
+
+            React.createElement('div', { key: 'ftr', className: 'flex justify-between items-center text-[9px] text-slate-400 font-bold border-t border-slate-200 pt-4' }, [
+              React.createElement('span', null, 'Planet Earth Diagnostics (Model Run: 2026.07.12)'),
+              React.createElement('span', null, 'Simulation Engine: WorldEngine.core')
+            ])
+          ])
+        );
+      };
+
+      // ==========================================
+      // 8. CORE APP ORCHESTRATOR COMPONENT
+      // ==========================================
+
+      function App() {
+        const [activeLayers, setActiveLayers] = useState({
+          earth: true,
+          aviation: true,
+          oceans: false,
+          space: true,
+          weather: false,
+          geology: false,
+          grid: true,
+        });
+
+        const timeScale = 1;
+        const [searchVal, setSearchVal] = useState('');
+        const [isPlaying, setIsPlaying] = useState(true);
+        const [selectedYear, setSelectedYear] = useState(2026);
+        const [viewMode, setViewMode] = useState('earth');
+        const [isPlanetHealthOpen, setIsPlanetHealthOpen] = useState(false);
+        const [activeSubmenu, setActiveSubmenu] = useState(null);
+
+        const [cameraTarget, setCameraTarget] = useState(null);
+        const [shakeIntensity, setShakeIntensity] = useState(0);
+        const [selectedSensor, setSelectedSensor] = useState(null);
+
+        const [compareData, setCompareData] = useState(null);
+        const [investigation, setInvestigation] = useState(null);
+        const zoomRadiusRef = useRef(8);
+
+        // --- NEW OPERATIONS OS STATE DOCKS ---
+        const [activeDeck, setActiveDeck] = useState('earth');
+        const [isReplaying, setIsReplaying] = useState(false);
+        const [isRecording, setIsRecording] = useState(false);
+        const [sessionLogs, setSessionLogs] = useState([]);
+        
+        // AI Operator State
+        const [missionStatus, setMissionStatus] = useState('idle');
+        const [missionLogs, setMissionLogs] = useState([]);
+        const [missionReport, setMissionReport] = useState(null);
+
+        const toggleLayer = (layer) => {
+          setActiveLayers((prev) => {
+            const next = { ...prev, [layer]: !prev[layer] };
+            if (isRecording) {
+              setSessionLogs((logs) => [...logs, `Toggled Layer: ${layer} -> ${next[layer] ? 'ON' : 'OFF'}`]);
+            }
+            return next;
+          });
+        };
+
+        // Temporal sweep Earth Replay loop
+        useEffect(() => {
+          if (!isReplaying) return;
+          const interval = setInterval(() => {
+            setSelectedYear((prev) => {
+              const idx = YEARS.indexOf(prev);
+              if (idx === -1 || idx === YEARS.length - 1) {
+                return YEARS[0];
+              }
+              return YEARS[idx + 1];
+            });
+          }, 2000);
+          return () => clearInterval(interval);
+        }, [isReplaying]);
+
+        // AI Mission Operations operator
+        const handleTriggerMission = (type) => {
+          setMissionStatus('running');
+          setMissionReport(null);
+          
+          let logs = [];
+          if (type === 'europe') {
+            logs = [
+              'Connecting telemetry stream...',
+              'Querying airspace corridors...',
+              'Analyzing flight nodes with weather radar...',
+              'Isolating storm vectors over Germany...',
+              'Compiling high-risk routing logs...'
+            ];
+          } else if (type === 'amazon') {
+            logs = [
+              'Targeting Amazon basin coordinates...',
+              'Accessing thermal geological seismometers...',
+              'Querying active forest wildfire hotspots...',
+              'Evaluating PM2.5 atmospheric air quality...',
+              'Delineating threat response buffer...'
+            ];
+          } else {
+            logs = [
+              'Locking Suez canal maritime lanes...',
+              'Querying cargo ship wait queues...',
+              'Loading Starlink uplink integrity...',
+              'Calculating logistics stress index...'
+            ];
+          }
+
+          setMissionLogs([]);
+          let step = 0;
+          const logInterval = setInterval(() => {
+            if (step < logs.length) {
+              setMissionLogs((prev) => [...prev, logs[step]]);
+              step++;
+            } else {
+              clearInterval(logInterval);
+              setMissionStatus('complete');
+              
+              if (type === 'europe') {
+                setActiveLayers({ earth: true, aviation: true, oceans: false, space: false, weather: true, geology: false, grid: true });
+                setCameraTarget({ lat: 50.0, lon: 10.0, zoom: 4.2, triggerKey: Math.random().toString() });
+                zoomRadiusRef.current = 4.2;
+                setMissionReport({
+                  region: 'Europe Sector Corridor',
+                  risk: 'CRITICAL',
+                  finding: 'Convective storm system active over southern Germany.',
+                  secondary: 'Munich Airport delays. Flight corridor LHR-HND rerouted to southern vectors.',
+                  metrics: 'Wind speed: 80 km/h | Latency: Nominal'
+                });
+              } else if (type === 'amazon') {
+                setActiveLayers({ earth: true, aviation: false, oceans: false, space: false, weather: true, geology: true, grid: true });
+                setCameraTarget({ lat: -3.465, lon: -62.215, zoom: 4.5, triggerKey: Math.random().toString() });
+                zoomRadiusRef.current = 4.5;
+                setMissionReport({
+                  region: 'Amazon Rainforest deforested zone',
+                  risk: 'HIGH RISK',
+                  finding: 'Deforestation fire plumes expanding California/Mojave vectors.',
+                  secondary: 'Evacuation zones active. Local air quality degraded.',
+                  metrics: 'Temp anomaly: +2.8°C | Active fires: 23'
+                });
+              } else {
+                setActiveLayers({ earth: true, aviation: false, oceans: true, space: true, weather: false, geology: false, grid: true });
+                setCameraTarget({ lat: 15.0, lon: 45.0, zoom: 5.5, triggerKey: Math.random().toString() });
+                zoomRadiusRef.current = 5.5;
+                setMissionReport({
+                  region: 'Suez Maritime transit corridor',
+                  risk: 'MODERATE',
+                  finding: 'Container ship dwell backlog climbing at Rotterdam port slots.',
+                  secondary: 'Whale migration corridor safety alerts dispatched.',
+                  metrics: 'Queue wait: 2.1 days | Port speed: 14 knots'
+                });
+              }
+            }
+          }, 800);
+        };
+
+        const getLayerFusionAnalysis = () => {
+          const activeCount = Object.values(activeLayers).filter(Boolean).length;
+          if (activeLayers.weather && activeLayers.aviation && activeLayers.grid) {
+            return {
+              title: 'Corridor Turbulence Overlay',
+              color: 'text-amber-800 border-amber-300 bg-amber-50',
+              desc: 'Convective cloud cells are intersecting primary aviation paths. Air traffic controllers routing 14 active flights to southern vectors. Total fuel burn efficiency reduced by 6.8%.'
+            };
+          }
+          if (activeLayers.weather && activeLayers.geology && activeLayers.earth) {
+            return {
+              title: 'Tectonic Tidal Coupling',
+              color: 'text-red-800 border-red-300 bg-red-50',
+              desc: 'High atmospheric low-pressure cells are overlapping active seismic fault vectors. Increased tidal stress recorded near Japan trench. Tsunami monitoring networks on alert.'
+            };
+          }
+          if (activeLayers.space && activeLayers.grid && activeLayers.earth) {
+            return {
+              title: 'Global Uplink Alignment',
+              color: 'text-teal-800 border-teal-300 bg-teal-50',
+              desc: 'Ground transceiver matrices are reporting perfect line-of-sight to the Starlink constellation. BGP transit tables stable. Solar flare radiation index remains within safety buffers.'
+            };
+          }
+          if (activeCount >= 2) {
+            return {
+              title: 'Integrated Multi-System Overlay',
+              color: 'text-purple-800 border-purple-300 bg-purple-50',
+              desc: 'Cross-referencing telemetry layers. Global systems diagnostics reflect active balance metrics. Grid demand and shipping loads are translating to normal vectors.'
+            };
+          }
+          return {
+            title: 'Awaiting Layer Fusion',
+            color: 'text-slate-600 border-slate-200 bg-slate-100',
+            desc: 'Activate two or more telemetry layers in the sidebar deck (e.g. Weather + Aviation + Grid) to synthesize real-time systems-level diagnostics.'
+          };
+        };
+
+        const fusion = getLayerFusionAnalysis();
+
+        const handleSearchSubmit = (e) => {
+          e.preventDefault();
+          const query = searchVal.trim().toLowerCase();
+          if (!query) return;
+
+          let target = null;
+          if (query.includes('japan')) {
+            target = { lat: 36.2048, lon: 138.2529, zoom: 4.2 };
+          } else if (query.includes('iss')) {
+            setActiveLayers((prev) => ({ ...prev, space: true }));
+            target = { lat: 15.0, lon: 45.0, zoom: 6.5 };
+          } else if (query.includes('earthquake') || query.includes('seismic')) {
+            setActiveLayers((prev) => ({ ...prev, geology: true, grid: true }));
+            target = { lat: 38.268, lon: 140.869, zoom: 4.0 };
+            setTimeout(() => setShakeIntensity(2.5), 1800);
+            setTimeout(() => setShakeIntensity(0), 4500);
+          } else if (query.includes('dubai')) {
+            target = { lat: 25.2048, lon: 55.2708, zoom: 4.5 };
+          } else if (query.includes('starlink')) {
+            setActiveLayers((prev) => ({ ...prev, space: true }));
+            target = { lat: 0.0, lon: 0.0, zoom: 7.2 };
+          } else if (query.includes('amazon') || query.includes('rainforest')) {
+            setActiveLayers((prev) => ({ ...prev, weather: true, geology: true }));
+            target = { lat: -3.4653, lon: -62.2159, zoom: 4.5 };
+          } else if (query.includes('coffee')) {
+            target = { lat: -14.235, lon: -51.925, zoom: 4.5 };
+          } else if (query.includes('tesla')) {
+            target = { lat: 30.224, lon: -97.625, zoom: 6.0 };
+          } else if (query.includes('nuclear') || query.includes('power')) {
+            setActiveLayers((prev) => ({ ...prev, grid: true }));
+            target = { lat: 47.512, lon: 7.954, zoom: 5.5 };
+          } else if (query.includes('hospital')) {
+            target = { lat: 51.5074, lon: -0.1278, zoom: 6.0 };
+          } else if (query.includes('sydney')) {
+            target = { lat: -33.8688, lon: 151.2093, zoom: 5.0 };
+          } else if (query.includes('cloudflare')) {
+            target = { lat: 37.7749, lon: -122.4194, zoom: 6.0 };
+          } else if (query.includes('india')) {
+            target = { lat: 20.5937, lon: 78.9629, zoom: 4.5 };
+          } else if (query.includes('cyclone') || query.includes('hurricane')) {
+            setActiveLayers((prev) => ({ ...prev, weather: true }));
+            target = { lat: 15.0, lon: -60.0, zoom: 4.0 };
+          } else {
+            target = { lat: 0.0, lon: 0.0, zoom: 8.0 };
+          }
+
+          if (target) {
+            setCameraTarget({ ...target, triggerKey: Math.random().toString() });
+            zoomRadiusRef.current = target.zoom;
+            if (isRecording) {
+              setSessionLogs((logs) => [...logs, `Searched: "${query}" -> flew to lat:${target.lat}, lon:${target.lon}`]);
+            }
+          }
+        };
+
+        const handleAlertTrigger = () => {
+          setActiveLayers((prev) => ({ ...prev, geology: true, grid: true }));
+          setCameraTarget({ lat: 38.268, lon: 140.869, zoom: 4.0, triggerKey: Math.random().toString() });
+          zoomRadiusRef.current = 4.0;
+          setTimeout(() => {
+            setShakeIntensity(2.5);
+          }, 1800);
+          setTimeout(() => {
+            setShakeIntensity(0);
+          }, 4500);
+          if (isRecording) {
+            setSessionLogs((logs) => [...logs, 'Triggered Live Tremor Alert flyby']);
+          }
+        };
+
+        const triggerInvestigation = (region) => {
+          setInvestigation({
+            open: true,
+            region,
+            status: 'analyzing',
+            logs: ['Connecting telemetry...', 'Querying databases...', 'Reading weather vectors...', 'Accessing satellites...'],
+            report: ''
+          });
+
+          setTimeout(() => {
+            setInvestigation((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                status: 'done',
+                logs: [...prev.logs, 'Data collation successful.', 'Generating report summary...'],
+                report: `INVESTIGATION DOSSIER: ${region.toUpperCase()}\n\n* Weather Grid: High pressure center locked over regional vectors.\n* Airport Status: Munich/London airspace operating at 94% capacity.\n* Satellites: Orbit group Starlink-5 reports zero signal degradation.\n* Status Code: Nominal.`
+              };
+            });
+          }, 3000);
+        };
+
+        const triggerCompare = (countryA, countryB) => {
+          setCompareData({
+            open: true,
+            countryA,
+            countryB
+          });
+        };
+
+        const handleTriggerSimulation = (type) => {
+          if (type === 'flights') {
+            setActiveLayers({
+              earth: true,
+              aviation: true,
+              oceans: false,
+              space: false,
+              weather: true,
+              geology: false,
+              grid: true,
+            });
+            setCameraTarget({ lat: 50.0, lon: 10.0, zoom: 4.2, triggerKey: Math.random().toString() });
+          } else if (type === 'weather') {
+            setActiveLayers({
+              earth: true,
+              aviation: false,
+              oceans: false,
+              space: false,
+              weather: true,
+              geology: true,
+              grid: true,
+            });
+            setCameraTarget({ lat: 37.0, lon: -120.0, zoom: 4.5, triggerKey: Math.random().toString() });
+          } else {
+            setActiveLayers({
+              earth: true,
+              aviation: true,
+              oceans: false,
+              space: true,
+              weather: false,
+              geology: false,
+              grid: true,
+            });
+            setCameraTarget(null);
+          }
+        };
+
+        return React.createElement('div', { className: `w-screen h-screen bg-[#0A0D14] text-slate-100 flex flex-col font-sans overflow-hidden scanlines relative ${shakeIntensity > 0 ? 'shake-active' : ''}` }, [
+          // Header (Refined Space Cockpit Design)
+          React.createElement('header', { key: 'hdr', className: 'h-16 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl px-6 flex items-center justify-between z-10 select-none text-slate-100' }, [
+            React.createElement('div', { key: 'h-left', className: 'flex items-center gap-6' }, [
+              React.createElement('div', { key: 'h-logo', className: 'flex items-center gap-2' }, [
+                React.createElement(Globe2, { className: 'w-5 h-5 text-blue-400' }),
+                React.createElement('span', { className: 'text-sm font-extrabold tracking-wider font-display text-slate-100' }, 'WORLD ENGINE')
+              ]),
+              React.createElement('div', { key: 'h-mode', className: 'flex bg-slate-900/60 p-0.5 rounded-lg border border-white/5 text-[10px] font-mono' }, [
+                React.createElement('button', {
+                  key: 'btn-globe',
+                  onClick: () => {
+                    setViewMode('earth');
+                    zoomRadiusRef.current = 8;
+                    if (isRecording) setSessionLogs((logs) => [...logs, 'ViewMode toggled: Earth Globe']);
+                  },
+                  className: `px-3 py-1 rounded transition-all font-bold ${viewMode === 'earth' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`
+                }, 'Globe'),
+                React.createElement('button', {
+                  key: 'btn-solar',
+                  onClick: () => {
+                    setViewMode('solarsystem');
+                    zoomRadiusRef.current = 12;
+                    if (isRecording) setSessionLogs((logs) => [...logs, 'ViewMode toggled: Solar System']);
+                  },
+                  className: `px-3 py-1 rounded transition-all font-bold ${viewMode === 'solarsystem' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`
+                }, 'Solar System')
+              ])
+            ]),
+
+            React.createElement('form', { key: 'h-search', onSubmit: handleSearchSubmit, className: 'relative w-96 font-mono' }, [
+              React.createElement(Search, { className: 'w-4 h-4 text-slate-500 absolute left-3 top-2.5' }),
+              React.createElement('input', {
+                type: 'text',
+                value: searchVal,
+                onChange: (e) => setSearchVal(e.target.value),
+                placeholder: 'Query Japan, ISS, Amazon, Cloudflare, Sydney...',
+                className: 'w-full bg-slate-900/80 border border-white/10 rounded-lg px-9 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500/40 shadow-sm'
+              })
+            ]),
+
+            React.createElement('div', { 
+              key: 'h-right',
+              onClick: () => setIsPlanetHealthOpen(true),
+              className: 'flex items-center gap-6 font-mono text-[11px] text-slate-300 cursor-pointer hover:text-slate-100 transition-colors' 
+            }, [
+              React.createElement('div', { key: 'ph-wrap', className: 'flex items-center gap-2 border-r border-white/10 pr-6' }, [
+                React.createElement('span', { className: 'flex h-2 w-2 relative' }, [
+                  React.createElement('span', { className: 'animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75' }),
+                  React.createElement('span', { className: 'relative inline-flex rounded-full h-2 w-2 bg-green-500' })
+                ]),
+                React.createElement('span', null, [
+                  'Planet Health Index: ',
+                  React.createElement('span', { className: 'text-green-400 font-extrabold' }, '92%')
+                ])
+              ]),
+              React.createElement('div', { key: 'ph-btn' }, 
+                React.createElement('span', { className: 'text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2.5 py-1 rounded-full font-bold' }, 'HEALTH COCKPIT')
+              )
+            ])
+          ]),
+
+          // Body layout
+          React.createElement('div', { key: 'body-frame', className: 'flex-1 flex relative overflow-hidden' }, [
+            // 3D Canvas wrapper
+            React.createElement('div', { key: 'canvas-bg', className: 'absolute inset-0 z-0' }, 
+              React.createElement(EarthGlobe, {
+                activeLayers,
+                timeScale: isPlaying ? timeScale : 0,
+                viewMode,
+                cameraTarget,
+                shakeIntensity,
+                selectedYear,
+                onSelectSensor: setSelectedSensor,
+                zoomRadiusRef
+              })
+            ),
+
+            // Sidebar (16 Operations Decks)
+            React.createElement('div', { key: 'sidebar-box', className: 'z-10 h-full flex flex-col' }, 
+              React.createElement(Sidebar, { activeDeck, setActiveDeck })
+            ),
+
+            // Dual slide-out Panel
+            activeDeck && React.createElement(OperationsControl, {
+              key: 'ops-panel',
+              activeDeck,
+              onClose: () => setActiveDeck(null),
+              activeLayers,
+              toggleLayer,
+              selectedYear,
+              setSelectedYear,
+              isPlaying,
+              setIsPlaying,
+              isReplaying,
+              setIsReplaying,
+              isRecording,
+              setIsRecording,
+              sessionLogs,
+              onTriggerMission: handleTriggerMission,
+              missionStatus,
+              missionLogs,
+              missionReport
+            }),
+
+            // Middle Layer Fusion analytical overlay
+            React.createElement('div', { key: 'fusion-hud', className: 'absolute top-4 left-1/2 -translate-x-1/2 z-10 w-96 p-3 hud-panel border border-slate-900/10 bg-white/70 backdrop-blur-xl rounded-xl flex flex-col gap-1.5 select-none transition-all duration-300 shadow-md' }, [
+              React.createElement('div', { key: 'f-hdr', className: 'flex justify-between items-center text-[9px] font-mono font-bold text-slate-500' }, [
+                React.createElement('span', null, '📡 LAYER FUSION RADAR'),
+                React.createElement('span', { className: 'text-teal-600' }, 'Coupling Online')
+              ]),
+              React.createElement('div', { key: 'f-box', className: `p-2 rounded-lg border text-[10px] leading-relaxed font-mono ${fusion.color}` }, [
+                React.createElement('h4', { className: 'font-extrabold mb-0.5 uppercase tracking-wide' }, fusion.title),
+                React.createElement('p', { className: 'text-stone-700 font-semibold' }, fusion.desc)
+              ])
+            ]),
+
+            // Clicked sensor details card
+            selectedSensor && React.createElement('div', { key: 'sensor-card', className: 'absolute bottom-24 left-72 z-20 w-80 p-3 hud-panel border border-teal-500/20 bg-white/70 backdrop-blur-xl rounded-xl font-mono text-[10px] shadow-2xl' }, [
+              React.createElement('div', { key: 's-hdr', className: 'flex justify-between border-b border-slate-200 pb-1.5 mb-1.5 font-bold text-slate-500' }, [
+                React.createElement('span', { className: 'text-teal-600' }, '● SEISMIC TELEMETRY SIGNAL'),
+                React.createElement('button', { onClick: () => setSelectedSensor(null), className: 'text-stone-500 hover:text-stone-800' }, '✕')
+              ]),
+              React.createElement('div', { key: 's-meta', className: 'space-y-1 text-stone-700' }, [
+                React.createElement('p', null, ['Station ID: ', React.createElement('span', { className: 'font-bold' }, selectedSensor.id)]),
+                React.createElement('p', null, ['Telemetry Node: ', React.createElement('span', { className: 'font-bold' }, selectedSensor.name)]),
+                React.createElement('p', { className: 'text-red-600 font-bold mt-1 text-xs' }, `Live Reading: ${selectedSensor.value} ${selectedSensor.unit}`)
+              ])
+            ]),
+
+            // Right Event Engine & Mission Recorder side-panel
+            React.createElement('div', { key: 'right-sidebar-ops', className: 'absolute right-4 top-4 bottom-4 z-10 w-[300px] flex flex-col gap-3 font-mono pointer-events-auto select-none' }, [
+              // Upper: Event Engine Tickers
+              React.createElement('div', { key: 'ev-panel', className: 'flex-1 p-3 hud-panel border border-slate-900/10 bg-white/60 backdrop-blur-xl rounded-xl flex flex-col overflow-hidden shadow-lg' }, [
+                React.createElement('span', { className: 'text-[9px] uppercase font-bold text-slate-500 tracking-wider block border-b border-slate-200 pb-2 mb-2' }, '🚨 Event Engine Feed'),
+                React.createElement('div', { className: 'flex-1 overflow-y-auto space-y-2 pr-1' }, 
+                  EVENTS.map((ev) => React.createElement('div', {
+                    key: ev.id,
+                    onClick: () => {
+                      setCameraTarget({ lat: ev.lat, lon: ev.lon, zoom: ev.zoom, triggerKey: Math.random().toString() });
+                      zoomRadiusRef.current = ev.zoom;
+                      setActiveLayers(ev.layers);
+                      if (ev.type === 'seismic') {
+                        setTimeout(() => setShakeIntensity(2.5), 1800);
+                        setTimeout(() => setShakeIntensity(0), 4500);
+                      }
+                      if (isRecording) {
+                        setSessionLogs((logs) => [...logs, `Event Trigger: ${ev.name} center-fly`]);
+                      }
+                    },
+                    className: 'p-2 bg-white/80 hover:bg-white border border-slate-200 rounded-lg cursor-pointer transition-all hover:scale-[1.02] shadow-sm'
+                  }, [
+                    React.createElement('div', { className: 'flex justify-between items-center text-[10px] font-bold text-blue-900 mb-0.5' }, [
+                      React.createElement('span', null, ev.name),
+                      React.createElement('span', { className: `text-[7px] px-1 rounded font-mono font-bold ${
+                        ev.type === 'seismic' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                      }` }, ev.type.toUpperCase())
+                    ]),
+                    React.createElement('p', { className: 'text-[9px] text-stone-600 leading-tight' }, ev.description)
+                  ]))
+                )
+              ]),
+
+              // Middle: Mission Session Recorder
+              React.createElement('div', { key: 'rec-panel', className: 'p-3 hud-panel border border-slate-900/10 bg-white/60 backdrop-blur-xl rounded-xl flex flex-col gap-2 shadow-lg text-[10px] text-stone-700' }, [
+                React.createElement('div', { className: 'flex justify-between items-center border-b border-slate-200 pb-1.5' }, [
+                  React.createElement('span', { className: 'font-bold uppercase text-slate-500 text-[9px]' }, '📼 Session Recorder'),
+                  React.createElement('span', { className: `font-bold ${isRecording ? 'text-red-600 animate-pulse' : 'text-slate-400'}` }, isRecording ? '● RECORDING' : '⏹ STANDBY')
+                ]),
+                React.createElement('div', { className: 'flex gap-1.5' }, [
+                  React.createElement('button', {
+                    onClick: () => {
+                      setIsRecording(!isRecording);
+                      if (!isRecording) {
+                        setSessionLogs(['[Recorder Initialized]']);
+                      }
+                    },
+                    className: `flex-1 py-1 rounded text-center font-bold border transition-all ${
+                      isRecording ? 'bg-red-600 text-white border-red-700' : 'bg-slate-200 hover:bg-slate-300 text-stone-700 border-slate-300'
+                    }`
+                  }, isRecording ? 'Stop' : 'Record'),
+                  sessionLogs.length > 1 && React.createElement('button', {
+                    onClick: () => {
+                      setIsRecording(false);
+                      // Replay sequence: fly back home
+                      setCameraTarget({ lat: 0, lon: 0, zoom: 8.0, triggerKey: Math.random().toString() });
+                      zoomRadiusRef.current = 8.0;
+                    },
+                    className: 'px-3 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white font-bold text-center'
+                  }, 'Replay')
+                ]),
+                sessionLogs.length > 0 && React.createElement('div', { className: 'p-1.5 bg-white/80 border border-slate-200 rounded max-h-[80px] overflow-y-auto font-mono text-[9px] text-slate-500 space-y-0.5' }, 
+                  sessionLogs.map((log, index) => React.createElement('div', { key: index }, log))
+                )
+              ]),
+
+              // Bottom: Log feeds ticker
+              React.createElement(WorldPulse, { key: 'wp-log' })
+            ]),
+
+            // Floating Timeline Footer Overlay (above Analytics Dock)
+            React.createElement('div', { key: 'timeline-overlay', className: 'absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[560px] p-3 hud-panel border border-slate-900/10 bg-white/70 backdrop-blur-xl rounded-xl flex items-center justify-between gap-4 shadow-xl select-none font-mono text-[10px]' }, [
+              React.createElement('div', { key: 'tl-lbl', className: 'w-24 text-left font-bold text-blue-900' }, `Year: ${selectedYear}`),
+              React.createElement('div', { key: 'tl-slider', className: 'flex-1 relative flex items-center' }, 
+                React.createElement('input', {
+                  type: 'range',
+                  min: '0',
+                  max: '4',
+                  step: '1',
+                  value: YEARS.indexOf(selectedYear) !== -1 ? YEARS.indexOf(selectedYear) : 2,
+                  onChange: (e) => {
+                    const nextYear = YEARS[parseInt(e.target.value)];
+                    setSelectedYear(nextYear);
+                    if (isRecording) {
+                      setSessionLogs((logs) => [...logs, `Timeline year swept to: ${nextYear}`]);
+                    }
+                  },
+                  className: 'w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-900 outline-none'
+                })
+              ),
+              React.createElement('div', { key: 'tl-zooms', className: 'flex items-center gap-1.5' }, [
+                React.createElement('button', {
+                  onClick: () => {
+                    const minZoom = viewMode === 'solarsystem' ? 6.0 : 3.2;
+                    zoomRadiusRef.current = Math.max(minZoom, zoomRadiusRef.current - 1.0);
+                  },
+                  className: 'w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 text-stone-700 flex items-center justify-center font-bold transition-all'
+                }, '+'),
+                React.createElement('button', {
+                  onClick: () => {
+                    const maxZoom = viewMode === 'solarsystem' ? 25.0 : 16.0;
+                    zoomRadiusRef.current = Math.min(maxZoom, zoomRadiusRef.current + 1.0);
+                  },
+                  className: 'w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 text-stone-700 flex items-center justify-center font-bold transition-all'
+                }, '-')
+              ])
+            ]),
+
+            // Bottom-left tremor flyby alert
+            React.createElement('div', { key: 'bottom-alert', className: 'absolute bottom-4 left-4 z-10 flex flex-col gap-2' }, 
+              React.createElement('div', {
+                onClick: handleAlertTrigger,
+                className: 'p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex gap-3 items-center cursor-pointer hover:bg-red-500/20 transition-all shadow-lg animate-pulse'
+              }, [
+                React.createElement(ShieldAlert, { className: 'w-5 h-5 text-red-500 flex-shrink-0' }),
+                React.createElement('div', { key: 'a-txt', className: 'font-mono text-[10px] text-red-800' }, [
+                  React.createElement('span', { className: 'font-bold text-red-700 block uppercase text-[9px] tracking-widest' }, 'Live Tremor Signal'),
+                  React.createElement('span', null, '⚠ Tohoku, Japan: M 7.2 Earthquake')
+                ]),
+                React.createElement(ArrowRight, { className: 'w-4 h-4 text-red-600 ml-2' })
+              ])
+            )
+          ]),
+
+          // Persistent Bottom Analytics Dock
+          React.createElement('footer', { key: 'analytics-dock', className: 'h-10 border-t border-slate-900/10 bg-white/70 backdrop-blur-xl px-6 flex items-center justify-between z-10 select-none text-[9px] font-mono text-slate-500 font-bold' }, [
+            React.createElement('div', { key: 'd-left', className: 'flex items-center gap-4' }, [
+              React.createElement('span', null, ['GPU LOAD: ', React.createElement('span', { className: 'text-teal-700' }, '1.45 GB / 8.0 GB')]),
+              React.createElement('span', null, ['SYSTEM CODE: ', React.createElement('span', { className: 'text-green-700' }, 'NOMINAL TRANSIT')]),
+              React.createElement('span', null, ['OPERATIONS QUEUE: ', React.createElement('span', { className: 'text-blue-900' }, missionStatus === 'running' ? 'COMPUTING CORRELATIONS' : 'STANDBY')])
+            ]),
+            React.createElement('div', { key: 'd-right', className: 'flex items-center gap-4' }, [
+              React.createElement('span', null, ['FPS: ', React.createElement('span', { className: 'text-green-700' }, '60.0')]),
+              React.createElement('span', { className: 'text-purple-600 font-extrabold animate-pulse' }, isRecording ? '⏺ REC ACTIVE' : '⏹ IDLE'),
+              React.createElement('span', null, `T-REPLAY: ${isReplaying ? 'ACTIVE' : 'OFF'}`)
+            ])
+          ]),
+
+          // Modals
+          React.createElement(PlanetHealth, { key: 'modal-ph', isOpen: isPlanetHealthOpen, onClose: () => setIsPlanetHealthOpen(false) }),
+
+          investigation && investigation.open && React.createElement('div', { key: 'modal-inv', className: 'absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-6 select-none font-mono text-stone-700' }, 
+            React.createElement('div', { className: 'w-full max-w-lg bg-white border border-slate-200 p-5 rounded-xl shadow-2xl space-y-4' }, [
+              React.createElement('div', { className: 'flex justify-between border-b border-slate-200 pb-2 text-sm text-blue-900 font-bold' }, [
+                React.createElement('span', null, '● AI EXPLORATION OPERATOR'),
+                React.createElement('button', { onClick: () => setInvestigation(null), className: 'text-stone-400 hover:text-stone-700' }, '✕')
+              ]),
+              React.createElement('div', { className: 'space-y-1 text-xs text-stone-600' }, [
+                React.createElement('p', null, ['Target: ', React.createElement('span', { className: 'font-bold' }, investigation.region)]),
+                React.createElement('p', null, ['Status: ', React.createElement('span', { className: 'text-green-700 font-bold' }, investigation.status.toUpperCase())])
+              ]),
+              React.createElement('div', { className: 'p-3 bg-slate-100 border border-slate-200 rounded-lg text-[10px] space-y-1 max-h-40 overflow-y-auto text-slate-500' }, 
+                investigation.logs.map((log, i) => React.createElement('div', { key: i }, `> ${log}`))
+              ),
+              investigation.status === 'done' && React.createElement('pre', { className: 'p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-xs leading-relaxed text-blue-950 break-words whitespace-pre-wrap' }, investigation.report)
+            ])
+          ),
+
+          compareData && compareData.open && React.createElement('div', { key: 'modal-comp', className: 'absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-6 select-none font-mono text-stone-700' }, 
+            React.createElement('div', { className: 'w-full max-w-xl bg-white border border-slate-200 p-5 rounded-xl shadow-2xl space-y-4' }, [
+              React.createElement('div', { className: 'flex justify-between border-b border-slate-200 pb-2 text-sm text-blue-900 font-bold' }, [
+                React.createElement('span', null, `● AI ANALYSIS MATRIX: ${compareData.countryA} VS ${compareData.countryB}`),
+                React.createElement('button', { onClick: () => setCompareData(null), className: 'text-stone-400 hover:text-stone-700' }, '✕')
+              ]),
+              React.createElement('div', { className: 'grid grid-cols-2 gap-4' }, [
+                React.createElement('div', { className: 'p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2' }, [
+                  React.createElement('h4', { className: 'text-blue-900 font-extrabold text-xs' }, compareData.countryA),
+                  React.createElement('div', { className: 'space-y-1 text-[11px] text-stone-600' }, [
+                    React.createElement('p', null, 'Population: 1.44 Billion'),
+                    React.createElement('p', null, 'Energy Demand: 3.8 Terawatts'),
+                    React.createElement('p', null, 'Logistics Index: 92% (High load)'),
+                    React.createElement('p', null, 'Core internet: 420 Mbps avg'),
+                    React.createElement('p', null, 'CO₂ output: Stable')
+                  ])
+                ]),
+                React.createElement('div', { className: 'p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2' }, [
+                  React.createElement('h4', { className: 'text-blue-900 font-extrabold text-xs' }, compareData.countryB),
+                  React.createElement('div', { className: 'space-y-1 text-[11px] text-stone-600' }, [
+                    React.createElement('p', null, 'Population: 1.41 Billion'),
+                    React.createElement('p', null, 'Energy Demand: 4.2 Terawatts'),
+                    React.createElement('p', null, 'Logistics Index: 88% (Optimized)'),
+                    React.createElement('p', null, 'Core internet: 540 Mbps avg'),
+                    React.createElement('p', null, 'CO₂ output: -1.2% yr')
+                  ])
+                ])
+              ]),
+              React.createElement('div', { className: 'p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs leading-relaxed text-purple-950 font-bold' }, [
+                React.createElement('h4', { className: 'font-bold text-purple-950 mb-1' }, 'AI Synthesis Summary'),
+                React.createElement('p', { className: 'text-[11px]' }, 'Cross-entity analysis reflects stable telemetry metrics. Transit lanes match high density logistics curves. Grid profiles correspond to standard atmospheric emission bounds.')
+              ])
+            ])
+          )
+        ]);
+      }
+
+      // React App DOM Mounting
+      createRoot(document.getElementById('root')).render(
+        React.createElement(StrictMode, null, React.createElement(App))
+      );
+    </script>
+  </body>
+</html>
