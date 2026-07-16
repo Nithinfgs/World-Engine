@@ -1,5 +1,7 @@
 # 🌍 World Engine — The Digital Twin of Earth
 
+https://magenta-starship-a51964.netlify.app/
+
 **World Engine** is a high-fidelity, interactive 3D digital twin simulation of Earth. Merging concepts from flight tracking dashboards, space mission telemetry, seismic maps, and AI-driven systems diagnostics, it serves as a fully responsive browser-based HUD interface built for visual excellence and systems-level exploration.
 
 ---
